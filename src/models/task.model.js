@@ -16,7 +16,7 @@ const taskSchema = new mongoose.Schema(
     },
     place: {  // Nuevo campo: lugar de la actividad
       type: String,
-      required: false,
+      required:true,
     },
     responsible: {  // Nuevo campo: responsables
       type: [String], // Array de strings para múltiples responsables
