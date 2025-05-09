@@ -41,11 +41,20 @@ export const deleteTask = async (req, res) => {
 
 export const updateTask = async (req, res) => {
   try {
-    const { title, description, date , place, responsible} = req.body;
+    const { title, description, date , place, responsible, promocionada} = req.body;
+    const updateData ={
+      title,
+      description,
+      date,
+      place,
+      responsible,
+      promocionada: !!promocionada, // Convierte a booleano
+      estado: promocionada ? "promocionada" : "todas", // Cambiar el estado según la promoción
+    };
     const taskUpdated = await Task.findOneAndUpdate(
       { _id: req.params.id },
-      { title, description, date, place, responsible },
-      { new: true }
+      updateData,
+     { new: true} // Devuelve el documento actualizado}
     );
     return res.json(taskUpdated);
   } catch (error) {
@@ -60,5 +69,84 @@ export const getTask = async (req, res) => {
     return res.json(task);
   } catch (error) {
     return res.status(500).json({ message: error.message });
+  }
+};
+
+export const promoteTask = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: "Task not found" });
+
+    task.estado = "promocionada"; // Cambia el estado a "promocionada"
+    await task.save(); // Guarda los cambios en la base de datos
+
+    res.json({ message: "tarea promocionada encontrada", task })
+}catch (error){
+  console.error("Error al promocionar tarea:", error.message);
+  res.status(500).json({ message: "Error interno del servidor" });
+}
+};
+
+export const searchTask = async (req, res) => {
+  try {
+    const { q, date, place, estado } = req.query;
+    const filters = {};
+    
+    //busqueda por texto en titulo o descripcion
+    if (q) {
+      filters.$or = [
+        { title: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+      ];
+    }
+     //busqueda por fecha exacta
+    if (date) {
+      const now = new Date();
+      if (date === "pasadas"){
+        filters.date = { $lt: now };
+      }else if (date === "proximas"){
+        filters.date = { $gt: now };
+      }
+    }
+    
+
+    
+    //busqueda por lugar
+    if (place){
+       filters.place = { $regex: place.trim(), $options: "i" };
+    }
+    //busqueda por estado
+    if (estado === "promocionadas"){
+     filters.estado = "promocionada";
+   }
+
+    console.log("Filtros construidos:", JSON.stringify(filters, null, 2));
+
+    const tasks = await Task.find(filters)
+      .populate("user", "username email")
+      .populate("asistentes", "username");
+
+    console.log("Resultados encontrados:", tasks.length);
+   // console.log("Títulos:", tasks.map(t => t.title));
+
+    const formattedTasks = tasks.map((task) => ({
+      id: task._id,
+      title: task.title,
+      description: task.description,
+      date: task.date,
+      place: task.place,
+      estado: task.estado,
+      totalAsistentes: task.asistentes?.length || 0,
+      user: {
+        username: task.user?.username,
+        email: task.user?.email,
+      },
+    }));
+
+    res.json(formattedTasks);
+
+  } catch (error) {
+    console.error("Error al buscar tarea:", error.message);
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 };
