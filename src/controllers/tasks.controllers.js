@@ -53,11 +53,34 @@ export const updateTask = async (req, res) => {
   }
 };
 
+// Controlador para obtener actividades de otros usuarios
+export const getOthersTasks = async (req, res) => {
+  try {
+    const activities = await Task.find({ 
+      user: { $ne: req.user.id } // Filtra por usuarios diferentes al actual
+    })
+    .populate("user", "email _id") // Trae solo el email del usuario creador
+    .select("-__v"); // Excluye campo __v
+
+    res.json(activities);
+  } catch (error) {
+    return res.status(500).json({ message: "Error al obtener actividades" });
+  }
+};
+
 export const getTask = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: "Task not found" });
-    return res.json(task);
+    const task = await Task.findById(req.params.id)
+      .populate("user", "email _id") // Muestra email del creador
+      .select("-__v");
+
+    if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
+    
+    // Agregar propiedad 'isOwner' para uso en frontend
+    const response = task.toObject();
+    response.isOwner = task.user._id.toString() === req.user.id;
+    
+    res.json(response);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
