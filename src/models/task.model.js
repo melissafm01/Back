@@ -26,6 +26,21 @@ const taskSchema = new mongoose.Schema(
       type: mongoose.Types.ObjectId,
       ref: "User",
     },
+    asistentes: [
+      {
+        type: mongoose.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    estado: {
+      type: String,
+      enum: ["todas","promocionada"],
+      default: "todas",
+    },
+    promocionada: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
