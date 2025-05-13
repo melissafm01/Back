@@ -2,7 +2,7 @@ import Task from "../models/task.model.js";
 
 export const getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find({ user : req.user.id }).populate("user");
+    const tasks = await Task.find({ user : req.user.id }).populate("user", "email _id");
     res.json(tasks);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -95,9 +95,12 @@ export const getTask = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
+
 };
 
 //Buscar y filtrar 
+
+
 export const promoteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -175,4 +178,54 @@ export const searchTask = async (req, res) => {
     res.status(500).json({ message: "Error interno del servidor" });
   }
 };
+
+
+// promociónar
+
+// Activar/desactivar promoción
+export const togglePromotion = async (req, res) => {
+  try {
+    const { isPromoted, promotion } = req.body;
+
+    // Verificar que el usuario sea dueño de la actividad
+    const task = await Task.findById(req.params.id);
+    if (!task)
+      return res.status(404).json({ message: "Actividad no encontrada" });
+    if (task.user.toString() !== req.user.id)
+      return res
+        .status(403)
+        .json({ message: "No tienes permiso para modificar esta actividad" });
+    // Actualizar el estado de promoción
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      {
+        isPromoted,
+        ...(promotion && { promotion }),
+      },
+      { new: true }
+    );
+    return res.json(updatedTask);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// Obtener actividades promocionadas
+export const getPromotedTasks = async (req, res) => {
+  try {
+    const promotedTasks = await Task.find({
+      isPromoted: true,
+    })
+      .populate("user", "email _id")
+      .select("-__v");
+
+    res.json(promotedTasks);
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Error al obtener actividades promocionadas" });
+  }
+};
+
+
 
