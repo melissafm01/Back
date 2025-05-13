@@ -39,6 +39,8 @@ export const deleteTask = async (req, res) => {
   }
 };
 
+
+
 export const updateTask = async (req, res) => {
   try {
     const { title, description, date , place, responsible, promocionada} = req.body;
@@ -95,7 +97,7 @@ export const getTask = async (req, res) => {
   }
 };
 
-
+//Buscar y filtrar 
 export const promoteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -110,6 +112,7 @@ export const promoteTask = async (req, res) => {
   res.status(500).json({ message: "Error interno del servidor" });
 }
 };
+
 
 export const searchTask = async (req, res) => {
   try {
@@ -132,8 +135,6 @@ export const searchTask = async (req, res) => {
         filters.date = { $gt: now };
       }
     }
-    
-
     
     //busqueda por lugar
     if (place){
