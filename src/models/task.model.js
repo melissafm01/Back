@@ -41,6 +41,23 @@ const taskSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    isPromoted: {    // Nuevo campo para promoción
+      type: Boolean,
+      default: false
+    },
+    // Configuración de la promoción (opcional)
+    promotion: {
+      startDate: {
+        type: Date,
+        default: null
+      },
+      // Fecha de fin de la promoción
+      endDate: {
+        type: Date,
+        default: null 
+      },
+    }
   },
   {
     timestamps: true,
