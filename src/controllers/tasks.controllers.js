@@ -1,14 +1,19 @@
+import mongoose from "mongoose";
 import Task from "../models/task.model.js";
 
+// Obtener todas las tareas del usuario actual
 export const getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find({ user : req.user.id }).populate("user", "email _id");
+    if (!req.user?.id) return res.status(401).json({ message: "No autorizado" });
+
+    const tasks = await Task.find({ user: req.user.id }).populate("user", "email _id");
     res.json(tasks);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 };
 
+// Crear una nueva tarea
 export const createTask = async (req, res) => {
   try {
     const { title, description, date, place, responsible } = req.body;
@@ -27,11 +32,14 @@ export const createTask = async (req, res) => {
   }
 };
 
+// Eliminar una tarea por ID
 export const deleteTask = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: "ID inválido" });
+
     const deletedTask = await Task.findByIdAndDelete(req.params.id);
-    if (!deletedTask)
-      return res.status(404).json({ message: "Task not found" });
+    if (!deletedTask) return res.status(404).json({ message: "Task not found" });
 
     return res.sendStatus(204);
   } catch (error) {
@@ -39,37 +47,37 @@ export const deleteTask = async (req, res) => {
   }
 };
 
+// Actualizar una tarea por ID
 export const updateTask = async (req, res) => {
   try {
-    const { title, description, date , place, responsible, promocionada} = req.body;
-    const updateData ={
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: "ID inválido" });
+
+    const { title, description, date, place, responsible, promocionada } = req.body;
+
+    const updateData = {
       title,
       description,
       date,
       place,
       responsible,
-      promocionada: !!promocionada, // Convierte a booleano
-      estado: promocionada ? "promocionada" : "todas", // Cambiar el estado según la promoción
+      promocionada: !!promocionada,
+      estado: promocionada ? "promocionada" : "todas",
     };
-    const taskUpdated = await Task.findOneAndUpdate(
-      { _id: req.params.id },
-      updateData,
-     { new: true} // Devuelve el documento actualizado}
-    );
+
+    const taskUpdated = await Task.findByIdAndUpdate(req.params.id, updateData, { new: true });
     return res.json(taskUpdated);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 };
 
-// Controlador para obtener actividades de otros usuarios
+// Obtener actividades de otros usuarios
 export const getOthersTasks = async (req, res) => {
   try {
-    const activities = await Task.find({ 
-      user: { $ne: req.user.id } // Filtra por usuarios diferentes al actual
-    })
-    .populate("user", "email _id") // Trae solo el email del usuario creador
-    .select("-__v"); // Excluye campo __v
+    const activities = await Task.find({ user: { $ne: req.user.id } })
+      .populate("user", "email _id")
+      .select("-__v");
 
     res.json(activities);
   } catch (error) {
@@ -77,83 +85,79 @@ export const getOthersTasks = async (req, res) => {
   }
 };
 
+// Obtener una tarea por ID
 export const getTask = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: "ID inválido" });
+
     const task = await Task.findById(req.params.id)
-      .populate("user", "email _id") // Muestra email del creador
+      .populate("user", "email _id")
       .select("-__v");
 
     if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
-    
-    // Agregar propiedad 'isOwner' para uso en frontend
+
     const response = task.toObject();
     response.isOwner = task.user._id.toString() === req.user.id;
-    
     res.json(response);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
-
 };
 
-
-//
+// Promocionar una tarea
 export const promoteTask = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: "ID inválido" });
+
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    task.estado = "promocionada"; // Cambia el estado a "promocionada"
-    await task.save(); // Guarda los cambios en la base de datos
+    task.estado = "promocionada";
+    await task.save();
 
-    res.json({ message: "tarea promocionada encontrada", task })
-}catch (error){
-  console.error("Error al promocionar tarea:", error.message);
-  res.status(500).json({ message: "Error interno del servidor" });
-}
+    res.json({ message: "Tarea promocionada", task });
+  } catch (error) {
+    console.error("Error al promocionar tarea:", error.message);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
 };
 
+// Buscar tareas con filtros
 export const searchTask = async (req, res) => {
   try {
     const { q, date, place, estado } = req.query;
     const filters = {};
-    
-    //busqueda por texto en titulo o descripcion
+
     if (q) {
       filters.$or = [
         { title: { $regex: q, $options: "i" } },
         { description: { $regex: q, $options: "i" } },
       ];
     }
-     //busqueda por fecha exacta
+
     if (date) {
       const now = new Date();
-      if (date === "pasadas"){
-        filters.date = { $lt: now };
-      }else if (date === "proximas"){
-        filters.date = { $gt: now };
-      }
+      if (date === "pasadas") filters.date = { $lt: now };
+      if (date === "proximas") filters.date = { $gt: now };
     }
-    
 
-    
-    //busqueda por lugar
-    if (place){
-       filters.place = { $regex: place.trim(), $options: "i" };
+    if (place) {
+      filters.place = { $regex: place.trim(), $options: "i" };
     }
-    //busqueda por estado
-    if (estado === "promocionadas"){
-     filters.estado = "promocionada";
-   }
 
-    console.log("Filtros construidos:", JSON.stringify(filters, null, 2));
+    if (estado === "promocionadas") {
+      filters.$or = [
+        { estado: "promocionada" },
+        { promocionada: true },
+        { isPromoted: true },
+      ];
+    }
 
     const tasks = await Task.find(filters)
       .populate("user", "username email")
       .populate("asistentes", "username");
-
-    console.log("Resultados encontrados:", tasks.length);
-   // console.log("Títulos:", tasks.map(t => t.title));
 
     const formattedTasks = tasks.map((task) => ({
       id: task._id,
@@ -170,29 +174,26 @@ export const searchTask = async (req, res) => {
     }));
 
     res.json(formattedTasks);
-
   } catch (error) {
     console.error("Error al buscar tarea:", error.message);
     res.status(500).json({ message: "Error interno del servidor" });
   }
 };
 
-// promociónar
-
-// Activar/desactivar promoción
+// Activar o desactivar promoción
 export const togglePromotion = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+      return res.status(400).json({ message: "ID inválido" });
+
     const { isPromoted, promotion } = req.body;
 
-    // Verificar que el usuario sea dueño de la actividad
     const task = await Task.findById(req.params.id);
-    if (!task)
-      return res.status(404).json({ message: "Actividad no encontrada" });
+    if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
+
     if (task.user.toString() !== req.user.id)
-      return res
-        .status(403)
-        .json({ message: "No tienes permiso para modificar esta actividad" });
-    // Actualizar el estado de promoción
+      return res.status(403).json({ message: "No tienes permiso para modificar esta actividad" });
+
     const updatedTask = await Task.findByIdAndUpdate(
       req.params.id,
       {
@@ -201,26 +202,23 @@ export const togglePromotion = async (req, res) => {
       },
       { new: true }
     );
+
     return res.json(updatedTask);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 };
 
-// Obtener actividades promocionadas
+// Obtener tareas promocionadas
 export const getPromotedTasks = async (req, res) => {
   try {
-    const promotedTasks = await Task.find({
-      isPromoted: true,
-    })
+    const promotedTasks = await Task.find({ isPromoted: true })
       .populate("user", "email _id")
       .select("-__v");
 
     res.json(promotedTasks);
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Error al obtener actividades promocionadas" });
+    return res.status(500).json({ message: "Error al obtener actividades promocionadas" });
   }
 };
 
