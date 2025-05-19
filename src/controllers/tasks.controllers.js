@@ -128,10 +128,11 @@ export const promoteTask = async (req, res) => {
 
 // Buscar tareas con filtros
 export const searchTask = async (req, res) => {
+
   try {
     const { q, date, place, estado } = req.query;
     const filters = {};
-
+   
     if (q) {
       filters.$or = [
         { title: { $regex: q, $options: "i" } },
@@ -143,6 +144,7 @@ export const searchTask = async (req, res) => {
       const now = new Date();
       if (date === "pasadas") filters.date = { $lt: now };
       if (date === "proximas") filters.date = { $gt: now };
+   
     }
     
     //busqueda por lugar
