@@ -145,4 +145,4 @@ export const deleteAttendance = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Error al eliminar asistente", error: error.message });
     }
-};//
+};

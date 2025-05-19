@@ -34,7 +34,7 @@ const taskSchema = new mongoose.Schema(
     ],
     estado: {
       type: String,
-      enum: ["todas","promocionada"],
+      enum: ["todas","promocionadas"],
       default: "todas",
     },
     promocionada: {

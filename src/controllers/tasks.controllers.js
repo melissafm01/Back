@@ -63,7 +63,7 @@ export const updateTask = async (req, res) => {
       place,
       responsible,
       promocionada: !!promocionada,
-      estado: promocionada ? "promocionada" : "todas",
+      estado: promocionada ? "promocionadas" : "todas",
     };
 
     const taskUpdated = await Task.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -155,7 +155,7 @@ export const searchTask = async (req, res) => {
 
     if (estado === "promocionadas") {
       filters.$or = [
-        { estado: "promocionada" },
+        { estado: "promocionadas" },
         { promocionada: true },
         { isPromoted: true },
       ];
@@ -204,6 +204,7 @@ export const togglePromotion = async (req, res) => {
       req.params.id,
       {
         isPromoted,
+        estado: isPromoted ? "promocionadas" : "todas", // ✅ aquí el cambio
         ...(promotion && { promotion }),
       },
       { new: true }
@@ -214,6 +215,7 @@ export const togglePromotion = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 // Obtener tareas promocionadas
 export const getPromotedTasks = async (req, res) => {
@@ -227,6 +229,3 @@ export const getPromotedTasks = async (req, res) => {
     return res.status(500).json({ message: "Error al obtener actividades promocionadas" });
   }
 };
-
-
-
