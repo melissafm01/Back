@@ -6,68 +6,43 @@ import mongoose from 'mongoose';
 
 export const confirmAttendance = async (req, res) => {
     try {
-        const { taskId } = req.body;
+        const { taskId, name, email } = req.body;
 
-        // Verificar que se envíe taskId
         if (!taskId) {
             return res.status(400).json({ message: "taskId es requerido" });
         }
 
-        // Si está autenticado, tomamos los datos del usuario
-        let attendanceData = {
-            task: taskId,
-            confirmed: true,
-        };
+        const attendanceData = { task: taskId };
 
         if (req.user) {
+            // Usuario autenticado
             attendanceData.user = req.user.id;
-            attendanceData.name = req.user.name;
-            attendanceData.email = req.user.email;
-
-            // Verifica que no haya duplicados
-            const existing = await Attendance.findOne({
-                user: req.user.id,
-                task: taskId,
-            });
-            if (existing) {
-                return res
-                    .status(400)
-                    .json({ message: "Ya confirmaste asistencia a esta tarea" });
-            }
+            attendanceData.name = req.user.name || name; // Usar name del body si no tiene en perfil
+            attendanceData.email = req.user.email || email; // Usar email del body si no tiene en perfil
         } else {
-            // Si no hay sesión, se espera name y email en el body
-            const { name, email } = req.body;
+            // Invitado
             if (!name || !email) {
                 return res.status(400).json({
-                    message: "Nombre y correo son requeridos para invitados",
+                    message: "Nombre y correo son requeridos para invitados"
                 });
             }
-
             attendanceData.name = name;
             attendanceData.email = email;
-
-            // Verifica duplicados por email + tarea
-            const existing = await Attendance.findOne({
-                email,
-                task: taskId,
-                user: { $exists: false },    
-            });
-            if (existing) {
-                return res
-                    .status(400)
-                    .json({ message: "Este correo ya confirmó asistencia a esta tarea" });
-            }
         }
 
-        // Crear la asistencia
-        const attendance = await Attendance.create(attendanceData);
-        return res
-            .status(201)
-            .json({ message: "Asistencia confirmada correctamente", attendance });
+        // Usar el método estático para evitar duplicados
+        const attendance = await Attendance.registerAttendance(attendanceData);
+        
+        return res.status(201).json({
+            message: "Asistencia confirmada correctamente",
+            attendance
+        });
     } catch (error) {
-        return res.status(500).json({
-            message: "Error al registrar asistencia",
-            error: error.message,
+        return res.status(400).json({
+            message: error.message.includes('Asistencia ya registrada') 
+                   ? error.message 
+                   : "Error al registrar asistencia",
+            error: error.message
         });
     }
 };
@@ -111,10 +86,31 @@ export const getAttendance = async (req, res) => {
     const { taskId } = req.params;
 
     try {
-        const antendees = await Attendance.find({ task: taskId });
-        res.json(antendees);
+        const attendees = await Attendance.find({ task: taskId })
+            .populate({
+                path: 'user',
+                select: 'name email -_id', // Solo traer name y email del usuario
+                options: { lean: true }
+            })
+            .lean(); // Convertir a objetos simples
+
+        // Normalizar la respuesta
+        const normalizedAttendees = attendees.map(attendee => {
+            return {
+                name: attendee.user?.name || attendee.name,
+                email: attendee.user?.email || attendee.email,
+                isRegisteredUser: !!attendee.user,
+                confirmed: attendee.confirmed,
+                date: attendee.createdAt
+            };
+        });
+
+        res.json(normalizedAttendees);
     } catch (error) {
-        res.status(500).json({ message: "Error al obtener asistencia", error: error.message });
+        res.status(500).json({ 
+            message: "Error al obtener asistencia", 
+            error: error.message 
+        });
     }
 };
 
