@@ -1,4 +1,5 @@
 import Attendance from '../models/attendance.model.js';
+import Task from '../models/task.model.js';
 import mongoose from 'mongoose';
 
 
@@ -11,15 +12,26 @@ export const confirmAttendance = async (req, res) => {
         if (!taskId) {
             return res.status(400).json({ message: "taskId es requerido" });
         }
+        const task = await Task.findById(taskId);
+        if (!task) {
+            return res.status(404).json({ message: "Actividad no encontrada" });
+        }
+
+        const isAuthenticated = !!req.user;
+        const isCreator = isAuthenticated && task.user.toString() === req.user.id;
+        const isManual = name && email;
 
         const attendanceData = { task: taskId };
 
-        if (req.user) {
-            // Usuario autenticado
+        if (isAuthenticated && isManual) { // usuario autenticado registando manualmente a otro
+            attendanceData.name = name;
+            attendanceData.email = email.toLowerCase();
+        } else if (isAuthenticated && !isCreator) {
+            // Usuario autenticado que no es el creador
             attendanceData.user = req.user.id;
             attendanceData.name = req.user.name || name; // Usar name del body si no tiene en perfil
             attendanceData.email = req.user.email || email; // Usar email del body si no tiene en perfil
-        } else {
+        } else if (!isAuthenticated) {
             // Invitado
             if (!name || !email) {
                 return res.status(400).json({
@@ -28,20 +40,26 @@ export const confirmAttendance = async (req, res) => {
             }
             attendanceData.name = name;
             attendanceData.email = email;
+        } else if (isCreator) if (!name || !email) {
+            return res.status(400).json({
+                message: "Nombre y correo son requeridos para el creador"
+            });
+            attendanceData.name = name;
+            attendanceData.email = email.toLowerCase();
         }
 
         // Usar el método estático para evitar duplicados
         const attendance = await Attendance.registerAttendance(attendanceData);
-        
+
         return res.status(201).json({
             message: "Asistencia confirmada correctamente",
             attendance
         });
     } catch (error) {
         return res.status(400).json({
-            message: error.message.includes('Asistencia ya registrada') 
-                   ? error.message 
-                   : "Error al registrar asistencia",
+            message: error.message.includes('Asistencia ya registrada')
+                ? error.message
+                : "Error al registrar asistencia",
             error: error.message
         });
     }
@@ -51,33 +69,33 @@ export const confirmAttendance = async (req, res) => {
 
 
 export const cancelAttendance = async (req, res) => {
-  const { taskId, email } = req.body;
-  const userId = req.user?.id;
+    const { taskId, email } = req.body;
+    const userId = req.user?.id;
 
-  // Validar el ID
-  if (!mongoose.Types.ObjectId.isValid(taskId)) {
-    return res.status(400).json({ message: "ID de actividad inválido" });
-  }
-
-  try {
-    let result = null;
-
-    if (email) {
-      result = await Attendance.findOneAndDelete({ email, task: taskId });
-    } else if (userId) {
-      result = await Attendance.findOneAndDelete({ user: userId, task: taskId });
-    } else {
-      return res.status(400).json({ message: "Faltan datos para cancelar asistencia" });
+    // Validar el ID
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+        return res.status(400).json({ message: "ID de actividad inválido" });
     }
 
-    if (!result) {
-      return res.status(404).json({ message: "No se encontró la asistencia" });
-    }
+    try {
+        let result = null;
 
-    res.json({ message: "Asistencia cancelada correctamente" });
-  } catch (error) {
-    res.status(500).json({ message: "Error al cancelar asistencia", error: error.message });
-  }
+        if (email) {
+            result = await Attendance.findOneAndDelete({ email, task: taskId });
+        } else if (userId) {
+            result = await Attendance.findOneAndDelete({ user: userId, task: taskId });
+        } else {
+            return res.status(400).json({ message: "Faltan datos para cancelar asistencia" });
+        }
+
+        if (!result) {
+            return res.status(404).json({ message: "No se encontró la asistencia" });
+        }
+
+        res.json({ message: "Asistencia cancelada correctamente" });
+    } catch (error) {
+        res.status(500).json({ message: "Error al cancelar asistencia", error: error.message });
+    }
 };
 
 
@@ -107,9 +125,9 @@ export const getAttendance = async (req, res) => {
 
         res.json(normalizedAttendees);
     } catch (error) {
-        res.status(500).json({ 
-            message: "Error al obtener asistencia", 
-            error: error.message 
+        res.status(500).json({
+            message: "Error al obtener asistencia",
+            error: error.message
         });
     }
 };
