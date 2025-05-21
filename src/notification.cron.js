@@ -10,7 +10,7 @@ const runNotificationCheck = async () => {
     const notifications = await Notification.find({}).populate("task").populate("user");
     for ( const config of notifications){
       const {task, user, daysBefore} = config;
-      const notifyDate = dayjs(task.date).subtract(daysBefore, 'day').startof('day');
+      const notifyDate = dayjs(task.date).subtract(daysBefore, 'day').startOf('day');
 
       if (notifyDate.isSame(now,startof('day'))) {
         // Aquí se envian las notificaciones al usuario
