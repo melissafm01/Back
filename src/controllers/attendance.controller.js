@@ -3,23 +3,18 @@ import mongoose from 'mongoose';
 
 
 // confirmar asistencia a una actividad
-
 export const confirmAttendance = async (req, res) => {
     try {
         const { taskId } = req.body;
-
         // Verificar que se envíe taskId
         if (!taskId) {
             return res.status(400).json({ message: "taskId es requerido" });
         }
-
         // Si está autenticado, tomamos los datos del usuario
         let attendanceData = {
             task: taskId,
             confirmed: true,
-        };
-
-        if (req.user) {
+        }; if (req.user) {
             attendanceData.user = req.user.id;
             attendanceData.name = req.user.name;
             attendanceData.email = req.user.email;
@@ -73,8 +68,6 @@ export const confirmAttendance = async (req, res) => {
 };
 
 //cancelar asistencia a una actividad
-
-
 export const cancelAttendance = async (req, res) => {
   const { taskId, email } = req.body;
   const userId = req.user?.id;
@@ -104,6 +97,7 @@ export const cancelAttendance = async (req, res) => {
     res.status(500).json({ message: "Error al cancelar asistencia", error: error.message });
   }
 };
+
 
 
 //obtener asistencia a una actividad (creador o admin)

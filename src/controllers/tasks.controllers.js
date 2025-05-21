@@ -200,7 +200,7 @@ export const togglePromotion = async (req, res) => {
     
       // Validar fecha de la actividad
     const currentDate = new Date();
-    if (new Date(task.date) < currentDate) {                     //ESTOOO//
+    if (new Date(task.date) < currentDate) {                     
       return res.status(400).json({         
         message: "No se puede modificar actividades pasadas"
       });
