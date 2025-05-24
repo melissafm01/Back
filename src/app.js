@@ -26,6 +26,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", taskRoutes);
 app.use("/api/attendances", attendanceRoutes);
 
+
 if (process.env.NODE_ENV === "production") {
   const path = await import("path");
   app.use(express.static("client/dist"));

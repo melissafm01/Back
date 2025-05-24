@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import Task from "../models/task.model.js";
+import {bucket}from "../config/firebase.js";
+import { v4 as uuidv4} from "uuid";
 
 // Obtener todas las tareas del usuario actual
 export const getTasks = async (req, res) => {
@@ -15,20 +17,52 @@ export const getTasks = async (req, res) => {
 
 // Crear una nueva tarea
 export const createTask = async (req, res) => {
+ 
   try {
-    const { title, description, date, place, responsible } = req.body;
-    const newTask = new Task({
+    const { title, description, place, date, responsible } = req.body;
+
+    let imageUrl = null;
+
+    // Verificamos si hay archivo (imagen)
+    if (req.file) {
+      const blob = bucket.file(`task-images/${Date.now()}_${req.file.originalname}`);
+
+      const blobStream = blob.createWriteStream({
+        metadata: {
+          contentType: req.file.mimetype,
+        },
+      });
+
+      // Promesa para esperar que la imagen se suba
+      await new Promise((resolve, reject) => {
+        blobStream.on('error', reject);
+
+        blobStream.on('finish', async () => {
+          await blob.makePublic(); // Si deseas que sea accesible públicamente
+          imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+          resolve();
+        });
+
+        blobStream.end(req.file.buffer); // Envía el archivo a Firebase
+      });
+    }
+
+    // Guarda la actividad en la base de datos
+
+    const newTask = await Task.create({
       title,
       description,
-      date,
       place,
+      date,
       responsible,
-      user: req.user.id,
+      image: imageUrl, // Guarda la URL pública
+      user: req.userId,
     });
-    await newTask.save();
-    res.json(newTask);
+    const populatedTask = await newTask.populate("user", "username email");
+    res.status(201).json({ task: populatedTask });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error('Error al crear la actividad:', error);
+    res.status(500).json({ message: 'Error al crear la actividad' });
   }
 };
 
