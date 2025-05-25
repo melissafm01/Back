@@ -1,7 +1,5 @@
 import mongoose from "mongoose";
 import Task from "../models/task.model.js";
-import {bucket}from "../config/firebase.js";
-import { v4 as uuidv4} from "uuid";
 
 // Obtener todas las tareas del usuario actual
 export const getTasks = async (req, res) => {
@@ -17,52 +15,20 @@ export const getTasks = async (req, res) => {
 
 // Crear una nueva tarea
 export const createTask = async (req, res) => {
- 
   try {
-    const { title, description, place, date, responsible } = req.body;
-
-    let imageUrl = null;
-
-    // Verificamos si hay archivo (imagen)
-    if (req.file) {
-      const blob = bucket.file(`task-images/${Date.now()}_${req.file.originalname}`);
-
-      const blobStream = blob.createWriteStream({
-        metadata: {
-          contentType: req.file.mimetype,
-        },
-      });
-
-      // Promesa para esperar que la imagen se suba
-      await new Promise((resolve, reject) => {
-        blobStream.on('error', reject);
-
-        blobStream.on('finish', async () => {
-          await blob.makePublic(); // Si deseas que sea accesible públicamente
-          imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-          resolve();
-        });
-
-        blobStream.end(req.file.buffer); // Envía el archivo a Firebase
-      });
-    }
-
-    // Guarda la actividad en la base de datos
-
-    const newTask = await Task.create({
+    const { title, description, date, place, responsible } = req.body;
+    const newTask = new Task({
       title,
       description,
-      place,
       date,
+      place,
       responsible,
-      image: imageUrl, // Guarda la URL pública
-      user: req.userId,
+      user: req.user.id,
     });
-    const populatedTask = await newTask.populate("user", "username email");
-    res.status(201).json({ task: populatedTask });
+    await newTask.save();
+    res.json(newTask);
   } catch (error) {
-    console.error('Error al crear la actividad:', error);
-    res.status(500).json({ message: 'Error al crear la actividad' });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -230,15 +196,6 @@ export const togglePromotion = async (req, res) => {
 
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
-
-    
-      // Validar fecha de la actividad
-    const currentDate = new Date();
-    if (new Date(task.date) < currentDate) {                     
-      return res.status(400).json({         
-        message: "No se puede modificar actividades pasadas"
-      });
-    }
 
     if (task.user.toString() !== req.user.id)
       return res.status(403).json({ message: "No tienes permiso para modificar esta actividad" });

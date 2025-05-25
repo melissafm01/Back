@@ -10,7 +10,7 @@ export const createTaskSchema = z.object({
   place: z.string({
     required_error: "place is required",
   }) .max(30),
-  responsible: z.string().max(70).optional(), 
+  responsible: z.array(z.string().max(70)).optional(), 
 });
 
 

@@ -25,7 +25,6 @@ const taskSchema = new mongoose.Schema(
     user: {
       type: mongoose.Types.ObjectId,
       ref: "User",
-      
     },
     asistentes: [
       {
@@ -33,10 +32,6 @@ const taskSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
-    image:{
-      type: String,
-      default: null,
-    },
     estado: {
       type: String,
       enum: ["todas","promocionadas"],

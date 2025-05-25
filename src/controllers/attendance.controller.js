@@ -37,13 +37,15 @@ export const confirmAttendance = async (req, res) => {
     }
 
     // Verificamos si ya existe una asistencia similar
-    const existing = await Attendance.findOne({
-      task: taskId,
-      $or: [
-        { user: attendanceData.user },
-        { email: attendanceData.email }
-      ]
-    });
+const existing = await Attendance.findOne({
+  task: taskId,
+  $or: [
+    // Si es usuario autenticado, verificar por user.id
+    ...(attendanceData.user ? [{ user: attendanceData.user }] : []),
+    // Si es invitado o registro manual, verificar por email exacto
+    ...(attendanceData.email ? [{ email: attendanceData.email.toLowerCase() }] : [])
+  ]
+});
 
     if (existing) return res.status(400).json({ message: "Ya estás registrado para esta actividad" });
 
