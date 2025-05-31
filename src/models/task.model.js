@@ -29,15 +29,17 @@ const taskSchema = new mongoose.Schema(
     },
     asistentes: [
       {
-        type: mongoose.Types.ObjectId,
-        ref: "User",
+       user:{ type: mongoose.Schema.Types.ObjectId, ref: "User"},
+       nombre: String,
+       email: String
+
       },
     ],
     image:{
       type: String,
       default: null,
     },
-    estado: {
+   /* estado: {
       type: String,
       enum: ["todas","promocionada"],
       default: "todas",
@@ -46,7 +48,7 @@ const taskSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
+*/
     isPromoted: {    // Nuevo campo para promoción
       type: Boolean,
       default: false

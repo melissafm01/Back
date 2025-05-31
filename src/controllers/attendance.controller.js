@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 // Confirmar asistencia a una actividad
 export const confirmAttendance = async (req, res) => {
   try {
-    const { taskId, name, email } = req.body;
+    const { taskId, name, email, nombreInvitado, correoInvitado } = req.body;
 
     if (!taskId) return res.status(400).json({ message: "taskId es requerido" });
 
@@ -14,38 +14,55 @@ export const confirmAttendance = async (req, res) => {
 
     const isAuthenticated = !!req.user;
     const isCreator = isAuthenticated && task.user.toString() === req.user.id;
-    const isManual = name && email;
+    const isManual = nombreInvitado && correoInvitado;
 
-    const attendanceData = { task: taskId };
+    let attendanceData = { task: taskId };
 
+    //  FLUJO: Usuario autenticado invitando a otro
     if (isAuthenticated && isManual) {
-      // Usuario autenticado registrando manualmente a otro
-      attendanceData.name = name;
-      attendanceData.email = email.toLowerCase();
+      attendanceData.name = nombreInvitado;
+      attendanceData.email = correoInvitado.toLowerCase();
+      // Verifica si ya hay un asistente con ese correo en la DB
+      const already = await Attendance.findOne({ task: taskId, email: attendanceData.email });
+      if (already) return res.status(400).json({ message: "Este invitado ya está registrado" });
+
+      // Agregar también al arreglo de la tarea (si quieres mantenerlo sincronizado)
+      task.asistentes.push({ name: nombreInvitado, email: correoInvitado });
+      await task.save();
+
+    //  FLUJO: Usuario autenticado no es el creador
     } else if (isAuthenticated && !isCreator) {
-      // Usuario autenticado que no es el creador
-      attendanceData.user = req.user.id;
+      const userId = req.user.id;
+
+      const yaRegistrado = await Attendance.findOne({ task: taskId, user: userId });
+      if (yaRegistrado) return res.status(400).json({ message: "Ya estás registrado para esta actividad" });
+
+      attendanceData.user = userId;
       attendanceData.name = req.user.name || name;
       attendanceData.email = req.user.email || email;
+
+      // También agregamos a `asistentes` del task
+      task.asistentes.push({ user: userId });
+      await task.save();
+
+    //  FLUJO: Invitado no autenticado
     } else if (!isAuthenticated) {
-      // Invitado
       if (!name || !email) return res.status(400).json({ message: "Nombre y correo requeridos para invitados" });
+      const correo = email.toLowerCase();
+
+      const yaInvitado = await Attendance.findOne({ task: taskId, email: correo });
+      if (yaInvitado) return res.status(400).json({ message: "Ya estás registrado para esta actividad" });
+
       attendanceData.name = name;
-      attendanceData.email = email.toLowerCase();
+      attendanceData.email = correo;
+
+      task.asistentes.push({ name, email: correo });
+      await task.save();
+
+    //  Creador no puede registrarse a su propia actividad
     } else {
       return res.status(403).json({ message: "No puedes confirmar asistencia a tu propia actividad" });
     }
-
-    // Verificamos si ya existe una asistencia similar
-    const existing = await Attendance.findOne({
-      task: taskId,
-      $or: [
-        { user: attendanceData.user },
-        { email: attendanceData.email }
-      ]
-    });
-
-    if (existing) return res.status(400).json({ message: "Ya estás registrado para esta actividad" });
 
     const newAttendance = await Attendance.create(attendanceData);
     return res.status(201).json({ message: "Asistencia confirmada", attendance: newAttendance });
@@ -72,6 +89,7 @@ export const cancelAttendance = async (req, res) => {
 
     res.json({ message: "Asistencia cancelada" });
   } catch (error) {
+    console.error("Error al confirmar asistencia:", error);
     res.status(500).json({ message: "Error al cancelar asistencia" });
   }
 };

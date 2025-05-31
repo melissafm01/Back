@@ -6,7 +6,8 @@ import {
   getTasks,
   updateTask,
   searchTask,
-  promoteTask
+  promoteTask,
+  getPublicTasks
 } from "../controllers/tasks.controllers.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { validateSchema } from "../middlewares/validator.middleware.js";
@@ -21,6 +22,8 @@ router.get("/tasks", auth, getTasks);
 router.post("/tasks", auth, upload,validateSchema(createTaskSchema), createTask);
 
 router.get("/tasks/search", auth, searchTask);
+
+router.get("/tasks/public/:id", getPublicTasks);
 
 router.put ("/tasks/:id/promote", promoteTask);
 

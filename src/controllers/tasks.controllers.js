@@ -256,4 +256,25 @@ export const getPromotedTasks = async (req, res) => {
   }
 };
 
-
+export const getPublicTasks = async (req, res) => {
+  try {
+    const publicTasks = await Task.findById(req.params.id)
+      .populate("user","username")
+      .select("title description place date estado image");
+      if (!publicTasks) {
+        return res.status(404).json({ message: "Actividad no encontrada" });
+      }
+      res.json({
+        title: publicTasks.title,
+        description: publicTasks.description,
+        place: publicTasks.place,
+        date: publicTasks.date,
+        estado: publicTasks.estado,
+        image: publicTasks.image || null,
+        responsible: publicTasks.user?.username || "Desconocido",
+      })
+  }catch (error) {
+    console.error("Error al obtener actividades públicas:", error.message);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
