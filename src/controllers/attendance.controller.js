@@ -102,7 +102,7 @@ export const getAttendance = async (req, res) => {
     const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
 
-    if (task.user.toString() !== req.user.id)
+    if (!task.user || task.user.toString() !== req.user.id)
       return res.status(403).json({ message: "No autorizado" });
 
     const attendees = await Attendance.find({ task: taskId }).select("-__v");

@@ -7,7 +7,8 @@ import {
   updateTask,
   searchTask,
   promoteTask,
-  getPublicTasks
+  getPublicTasks,
+ 
 } from "../controllers/tasks.controllers.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { validateSchema } from "../middlewares/validator.middleware.js";
@@ -16,6 +17,8 @@ import  upload  from "../middlewares/multer.middleware.js";
 
 
 const router = Router();
+
+
 
 router.get("/tasks", auth, getTasks);
 

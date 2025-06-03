@@ -122,17 +122,30 @@ export const getOthersTasks = async (req, res) => {
 // Obtener una tarea por ID
 export const getTask = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+    const taskId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(taskId))
       return res.status(400).json({ message: "ID inválido" });
 
-    const task = await Task.findById(req.params.id)
+    const task = await Task.findById(taskId)
       .populate("user", "email _id")
       .select("-__v");
 
     if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
 
+    // Verificar si el usuario actual está registrado como asistente
+    const existingAttendance = await Attendance.findOne({
+      taskId: taskId,
+      $or: [
+        { userId: req.user.id },           // Usuario logueado
+        { email: req.user.email }          // (Fallback si lo necesitas)
+      ]
+    });
+
     const response = task.toObject();
     response.isOwner = task.user._id.toString() === req.user.id;
+    response.isUserAttending = !!existingAttendance;
+
     res.json(response);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -278,3 +291,4 @@ export const getPublicTasks = async (req, res) => {
     res.status(500).json({ message: "Error interno del servidor" });
   }
 };
+

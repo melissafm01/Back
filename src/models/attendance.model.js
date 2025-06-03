@@ -4,7 +4,9 @@ const attendanceSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: false, // Para usuarios logueados
+    required: function(){
+      return !this.email; // Requerido si no es un invitado
+    }, // Para usuarios logueados
   },
   name: {
     type: String,
@@ -14,7 +16,7 @@ const attendanceSchema = new mongoose.Schema({
     type: String,
     required: function() { return !this.user; }, // Requerido para invitados
    lowercase: true,
-   trime: true,
+   trim: true,
   },
   task: {
     type: mongoose.Schema.Types.ObjectId,
