@@ -6,12 +6,9 @@ import mongoose from 'mongoose';
 export const confirmAttendance = async (req, res) => {
   try {
     const { taskId, name, email } = req.body;
-
     if (!taskId) return res.status(400).json({ message: "taskId es requerido" });
-
     const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
-
     const isAuthenticated = !!req.user;
     const isCreator = isAuthenticated && task.user.toString() === req.user.id;
     const isManual = name && email;
