@@ -160,3 +160,47 @@ export const exportAttendance = async (req, res) => {
   }
 
 };
+
+
+// Verificar si un usuario ya está registrado para una actividad específica
+export const checkAttendance = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { email } = req.query; // Recibir email como query parameter
+
+    if (!taskId) {
+      return res.status(400).json({ message: "taskId es requerido" });
+    }
+
+    // Construir criterio de búsqueda
+    let criteria = { task: taskId };
+    
+    if (req.user?.id) {
+      // Usuario autenticado: buscar por user ID o email
+      criteria = {
+        task: taskId,
+        $or: [
+          { user: req.user.id },
+          { email: req.user.email?.toLowerCase() }
+        ]
+      };
+    } else if (email) {
+      // Usuario no autenticado: buscar solo por email
+      criteria.email = email.toLowerCase();
+    } else {
+      return res.status(400).json({ 
+        message: "Email requerido para usuarios no autenticados" 
+      });
+    }
+
+    const attendance = await Attendance.findOne(criteria);
+    
+    res.json({ 
+      isAttending: !!attendance,
+      attendance: attendance || null
+    });
+  } catch (error) {
+    console.error("Error al verificar asistencia:", error);
+    res.status(500).json({ message: "Error al verificar asistencia" });
+  }
+};
