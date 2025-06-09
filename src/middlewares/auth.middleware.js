@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
 import { TOKEN_SECRET } from "../config.js";
+import User from "../models/user.model.js";
 
-export const auth = (req, res, next) => {
+export const auth = async (req, res, next) => {
   try {
     const token =
       req.cookies.token ||
@@ -10,11 +11,24 @@ export const auth = (req, res, next) => {
     if (!token)
       return res.status(401).json({ message: "No token, authorization denied" });
 
-    jwt.verify(token, TOKEN_SECRET, (error, user) => {
+    jwt.verify(token, TOKEN_SECRET, async (error, decoded) => {
       if (error) return res.status(401).json({ message: "Token is not valid" });
 
-      req.user = user; // <- el payload del token
-      req.userId = user.id || user._id
+      // Buscar el usuario completo en la base de datos para obtener el rol actualizado
+      const user = await User.findById(decoded.id).select('-password');
+      
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      req.user = {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      };
+      
+      req.userId = user._id;
       next();
     });
   } catch (error) {
