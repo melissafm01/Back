@@ -218,7 +218,7 @@ export const registerAdmin = async (req, res) => {
 
     const userFound = await User.findOne({ email });
     if (userFound)
-      return res.status(400).json({ message: ["Email is already taken"] });
+      return res.status(400).json({ message: ["El correo electrónico ya está en uso"] });
 
     const passwordHash = await bcrypt.hash(password, 10);
 
