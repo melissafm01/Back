@@ -8,6 +8,8 @@ import { FRONTEND_URL } from "./config.js";
 import notificationRoutes from "./routes/notifications.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import adminPanelRoutes from "./routes/adminPanel.routes.js";
+
 const app = express();
 
 app.use(
@@ -21,9 +23,13 @@ app.use(express.json());
 app.use(morgan("dev"));
 app.use(cookieParser());
 
+
+
+
 app.use("/api", notificationRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin-panel", adminPanelRoutes);
 app.use("/api", taskRoutes);
 app.use("/api/attendances", attendanceRoutes);
 
