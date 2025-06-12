@@ -2,15 +2,11 @@ import { z } from "zod";
 
 export const createTaskSchema = z.object({
 
-  title: z.string({
-    required_error: "Title is required",
-  }) .max(90),
+  title: z.string({ required_error: "Title is required",}) .max(90),
   description: z.string().optional(),
   date: z.string().optional(),
-  place: z.string({
-    required_error: "place is required",
-  }) .max(30),
-  responsible: z.string().max(70).optional(), 
+  place: z.string({ required_error: "place is required", }) .max(30),
+  responsible: z.array(z.string().max(70)).optional(), 
 });
 
 

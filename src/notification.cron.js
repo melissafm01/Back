@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { sendEmail } from './libs/sendEmail.js';
 import { sendPushNotification } from './libs/sendPushNotification.js';
 import Attendance from './models/attendance.model.js';
+
 const runNotificationCheck = async () => {
   const now = dayjs();
 

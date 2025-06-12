@@ -19,52 +19,21 @@ export const getTasks = async (req, res) => {
 
 // Crear una nueva tarea
 export const createTask = async (req, res) => {
- 
   try {
-    const { title, description, place, date, responsible } = req.body;
-
-    let imageUrl = null;
-
-    // Verificamos si hay archivo (imagen)
-    if (req.file) {
-      const blob = bucket.file(`task-images/${Date.now()}_${req.file.originalname}`);
-
-      const blobStream = blob.createWriteStream({
-        metadata: {
-          contentType: req.file.mimetype,
-        },
-      });
-
-      // Promesa para esperar que la imagen se suba
-      await new Promise((resolve, reject) => {
-        blobStream.on('error', reject);
-
-        blobStream.on('finish', async () => {
-          await blob.makePublic(); // Si deseas que sea accesible públicamente
-          imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-          resolve();
-        });
-
-        blobStream.end(req.file.buffer); // Envía el archivo a Firebase
-      });
-    }
-
-    // Guarda la actividad en la base de datos (ejemplo con mongoose)
-
-    const newTask = await Task.create({
+    const { title, description, date, place, responsible } = req.body;
+    const newTask = new Task({
       title,
       description,
-      place,
       date,
+      place,
       responsible,
       image: imageUrl, // Guarda la URL pública
       user: req.user.Id,
     });
-    const populatedTask = await newTask.populate("user", "username email");
-    res.status(201).json({ task: populatedTask });
+    await newTask.save();
+    res.json(newTask);
   } catch (error) {
-    console.error('Error al crear la actividad:', error);
-    res.status(500).json({ message: 'Error al crear la actividad' });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -96,6 +65,7 @@ export const deleteTask = async (req, res) => {
 };
 
 // Actualizar una tarea por ID
+
 export const updateTask = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id))
@@ -110,7 +80,7 @@ export const updateTask = async (req, res) => {
       place,
       responsible,
       promocionada: !!promocionada,
-      estado: promocionada ? "promocionada" : "todas",
+      estado: promocionada ? "promocionadas" : "todas",
     };
 
     const taskUpdated = await Task.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -167,6 +137,7 @@ export const getTask = async (req, res) => {
 };
 
 // Promocionar una tarea
+
 export const promoteTask = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id))
@@ -187,10 +158,11 @@ export const promoteTask = async (req, res) => {
 
 // Buscar tareas con filtros
 export const searchTask = async (req, res) => {
+
   try {
     const { q, date, place, estado } = req.query;
     const filters = {};
-
+   
     if (q) {
       filters.$or = [
         { title: { $regex: q, $options: "i" } },
@@ -202,15 +174,18 @@ export const searchTask = async (req, res) => {
       const now = new Date();
       if (date === "pasadas") filters.date = { $lt: now };
       if (date === "proximas") filters.date = { $gt: now };
+   
     }
+    
+    //busqueda por lugar
+    if (place){
+       filters.place = { $regex: place.trim(), $options: "i" };
 
-    if (place) {
-      filters.place = { $regex: place.trim(), $options: "i" };
     }
 
     if (estado === "promocionadas") {
       filters.$or = [
-        { estado: "promocionada" },
+        { estado: "promocionadas" },
         { promocionada: true },
         { isPromoted: true },
       ];
@@ -259,6 +234,7 @@ export const togglePromotion = async (req, res) => {
       req.params.id,
       {
         isPromoted,
+        estado: isPromoted ? "promocionadas" : "todas", // ✅ aquí el cambio
         ...(promotion && { promotion }),
       },
       { new: true }
@@ -269,6 +245,7 @@ export const togglePromotion = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 // Obtener tareas promocionadas
 export const getPromotedTasks = async (req, res) => {
@@ -281,6 +258,7 @@ export const getPromotedTasks = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: "Error al obtener actividades promocionadas" });
   }
+
 };
 
 export const getPublicTasks = async (req, res) => {

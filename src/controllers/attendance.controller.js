@@ -5,13 +5,10 @@ import Notification from '../models/notification.model.js';
 // Confirmar asistencia a una actividad
 export const confirmAttendance = async (req, res) => {
   try {
-    const { taskId, name, email, nombreInvitado, correoInvitado } = req.body;
-
+    const { taskId, name, email } = req.body;
     if (!taskId) return res.status(400).json({ message: "taskId es requerido" });
-
     const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
-
     const isAuthenticated = !!req.user;
     const isCreator = isAuthenticated && task.user.toString() === req.user.id;
     const isManual = nombreInvitado && correoInvitado;
@@ -63,6 +60,19 @@ export const confirmAttendance = async (req, res) => {
     } else {
       return res.status(403).json({ message: "No puedes confirmar asistencia a tu propia actividad" });
     }
+
+    // Verificamos si ya existe una asistencia similar
+const existing = await Attendance.findOne({
+  task: taskId,
+  $or: [
+    // Si es usuario autenticado, verificar por user.id
+    ...(attendanceData.user ? [{ user: attendanceData.user }] : []),
+    // Si es invitado o registro manual, verificar por email exacto
+    ...(attendanceData.email ? [{ email: attendanceData.email.toLowerCase() }] : [])
+  ]
+});
+
+    if (existing) return res.status(400).json({ message: "Ya estás registrado para esta actividad" });
 
     const newAttendance = await Attendance.create(attendanceData);
     if(req.user)
@@ -202,8 +212,8 @@ export const exportAttendance = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Error al exportar lista de asistencia" });
   }
-};
 
+};
 
 
 // Verificar si un usuario ya está registrado para una actividad específica
@@ -249,68 +259,11 @@ export const checkAttendance = async (req, res) => {
   }
 };
 
-/*export const getUserAttendances = async (req, res) => {
-  try {
-    const userId = req.user.id;
 
-    const attendances = await Attendance.find({ user: userId })
-      .populate("task", "title date")
-      .select("-__v");
 
-    res.json(attendances);
-  } catch (error) {
-    console.error("Error al obtener asistencias del usuario:", error);
-    res.status(500).json({ message: "Error al obtener asistencias del usuario" });
-  }
-};
-//////
 export const getUserAttendances = async (req, res) => {
   try {
-    console.log('Solicitud de asistencias para:', {
-      userId: req.user.id,
-      email: req.user.email,
-      token: req.headers.authorization
-    });
-
-    const criteria = {
-      $or: [
-        { user: req.user.id },
-        { email: req.user.email?.toLowerCase() }
-      ]
-    };
-
-    console.log('Criterio de búsqueda:', criteria);
-    
-    const attendances = await Attendance.find(criteria)
-      .populate('task', 'title date')
-      .lean();
-
-    console.log('Resultados encontrados:', attendances);
-    
-    res.json(attendances);
-  } catch (error) {
-    console.error('Error completo:', {
-      message: error.message,
-      stack: error.stack,
-      user: req.user
-    });
-    res.status(500).json({ message: "Error al obtener asistencias" });
-  }
-};*/
-export const getUserAttendances = async (req, res) => {
-  try {
-    // 1. Verificación exhaustiva del usuario
-    console.log('[DEBUG] Usuario en token:', {
-      id: req.user.id,
-      email: req.user.email,
-      idType: typeof req.user.id,
-      idString: req.user.id.toString()
-    });
-
-    // 2. Conversión explícita del ID para evitar discrepancias
     const userId = new mongoose.Types.ObjectId(req.user.id);
-
-    // 3. Criterio de búsqueda mejorado
     const criteria = {
       $or: [
         { user: userId },
@@ -329,24 +282,14 @@ export const getUserAttendances = async (req, res) => {
       })
       .lean();
 
-    console.log('[DEBUG] Asistencias crudas:', JSON.stringify(attendances, null, 2));
-
     // 5. Filtrado de resultados inconsistentes
     const validAttendances = attendances.filter(att => 
       att.task !== null && 
       (att.user?.toString() === req.user.id || att.email === req.user.email?.toLowerCase())
     );
 
-    console.log('[DEBUG] Asistencias válidas:', validAttendances.length);
-
     res.json(validAttendances);
   } catch (error) {
-    console.error('[ERROR] Detalle completo:', {
-      message: error.message,
-      stack: error.stack,
-      userId: req.user?.id,
-      userEmail: req.user?.email
-    });
     res.status(500).json({ 
       message: "Error al obtener asistencias",
       error: error.message

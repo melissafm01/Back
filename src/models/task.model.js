@@ -1,74 +1,100 @@
 import mongoose from "mongoose";
 
-const taskSchema = new mongoose.Schema(
-  {
-    title: {
-      type: String,
-      required: true,
-    },
-    description: {
-      type: String,
-      required: true,
-    },
-    date: {
-      type: Date,
-      default: Date.now,
-    },
-    place: {  // Nuevo campo: lugar de la actividad
-      type: String,
-      required:true,
-    },
-    responsible: {  // Nuevo campo: responsables
-      type: [String], // Array de strings para múltiples responsables
-      required: false,
-    },
-    user: {
-      type: mongoose.Types.ObjectId,
-      ref: "User",
-      
-    },
-    asistentes: [
-      {
-       user:{ type: mongoose.Schema.Types.ObjectId, ref: "User"},
-       nombre: String,
-       email: String
-
+const taskSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 100
+  },
+  description: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 2000
+  },
+  date: {
+    type: Date,
+    required: true
+  },
+  place: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 100
+  },
+  responsible: {
+    type: [String],
+    required: false,
+    validate: {
+      validator: function(arr) {
+        return arr.every(item => typeof item === 'string' && item.length <= 70);
       },
-    ],
-    image:{
-      type: String,
-      default: null,
-    },
-   /* estado: {
-      type: String,
-      enum: ["todas","promocionada"],
-      default: "todas",
-    },
-    promocionada: {
-      type: Boolean,
-      default: false,
-    },
-*/
-    isPromoted: {    // Nuevo campo para promoción
-      type: Boolean,
-      default: false
-    },
-    // Configuración de la promoción (opcional)
-    promotion: {
-      startDate: {
-        type: Date,
-        default: null
-      },
-      // Fecha de fin de la promoción
-      endDate: {
-        type: Date,
-        default: null 
-      },
+      message: props => `${props.value} contains invalid responsible names`
     }
   },
-  {
-    timestamps: true,
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending"
+  },
+  approvedAt: Date,
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+  rejectedAt: Date,
+  rejectedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+  rejectionReason: String,
+  isPromoted: {
+    type: Boolean,
+    default: false
+  },
+  promotion: {
+    startDate: Date,
+    endDate: Date,
+    featured: Boolean
+  },
+  capacity: {
+    type: Number,
+    min: 1,
+    default: 50
+  },
+  categories: {
+    type: [String],
+    default: []
+  },
+  requirements: {
+    type: [String],
+    default: []
   }
-);
+}, {
+  timestamps: true,
+  toJSON: {
+    virtuals: true
+  }
+});
+
+// Índices para búsquedas rápidas
+taskSchema.index({ title: 'text', description: 'text', place: 'text' });
+taskSchema.index({ status: 1, isPromoted: 1 });
+taskSchema.index({ date: 1 });
+taskSchema.index({ user: 1 });
+
+// Virtual para contar asistentes
+taskSchema.virtual('attendeesCount', {
+  ref: 'Attendance',
+  localField: '_id',
+  foreignField: 'task',
+  count: true
+});
 
 export default mongoose.model("Task", taskSchema);

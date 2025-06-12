@@ -1,39 +1,44 @@
 import { Router } from "express";
 import {
-  createTask,
+  createTask,  
   deleteTask,
   getTask,
   getTasks,
   updateTask,
-  searchTask,
+  getOthersTasks, //listar  actividades de usuarios//
+  searchTask,    
   promoteTask,
-  getPublicTasks,
- 
-} from "../controllers/tasks.controllers.js";
+  togglePromotion, //  activar/desactivar promoción
+  getPromotedTasks //obtener actividades promocionadas
+} 
+from "../controllers/tasks.controllers.js";
+
 import { auth } from "../middlewares/auth.middleware.js";
 import { validateSchema } from "../middlewares/validator.middleware.js";
-import { createTaskSchema } from "../schemas/task.schema.js";
-import  upload  from "../middlewares/multer.middleware.js";
-
+import { createTaskSchema,  promotionSchema } from "../schemas/task.schema.js";
 
 const router = Router();
 
+//  ruta para obtener actividades promocionadas
+router.get("/tasks/promoted", auth, getPromotedTasks);
+
+//  ruta para activar y desactivar promocion
+router.patch("/tasks/:id/promotion", auth, validateSchema(promotionSchema), togglePromotion);
 
 
-router.get("/tasks", auth, getTasks);
+//Listado de actividades de usuarios//
+router.get("/tasks/others", auth, getOthersTasks);
 
-router.post("/tasks", auth, upload,validateSchema(createTaskSchema), createTask);
+
 
 router.get("/tasks/search", auth, searchTask);
-
-router.get("/tasks/public/:id", getPublicTasks);
-
 router.put ("/tasks/:id/promote", promoteTask);
 
+//Creacion de actividades//
+router.get("/tasks", auth, getTasks);
+router.post("/tasks", auth, validateSchema(createTaskSchema), createTask);
 router.get("/tasks/:id", auth, getTask);
-
 router.put("/tasks/:id", auth, updateTask);
-
 router.delete("/tasks/:id", auth, deleteTask);
 
 export default router;

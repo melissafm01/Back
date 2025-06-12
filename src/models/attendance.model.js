@@ -12,6 +12,11 @@ import mongoose from "mongoose";
     ref: "Task",
     required: true
   },
+
+  confirmed: {
+    type: Boolean,
+    default: true // Por defecto no confirmado
+  },
   date: {
     type: Date,
     default: Date.now,
