@@ -1,9 +1,9 @@
 
-
 import admin from 'firebase-admin';
 import { readFileSync } from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+
 
 dotenv.config();
 
@@ -25,4 +25,4 @@ if (!admin.apps.length) {
 const bucket = admin.storage().bucket();
 
 //  Exporta el bucket para usarlo en controladores
-export { bucket };
+export  { admin, bucket };

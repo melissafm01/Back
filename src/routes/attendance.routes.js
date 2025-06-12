@@ -6,7 +6,8 @@ import {
   updateAttendance,
   deleteAttendance,
   exportAttendance,
-  checkAttendance
+  checkAttendance,
+  getUserAttendances
 } from "../controllers/attendance.controller.js";
 import { auth} from "../middlewares/auth.middleware.js";
 

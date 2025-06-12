@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import Task from "../models/task.model.js";
 import {bucket}from "../config/firebase.js";
 import { v4 as uuidv4} from "uuid";
+import Notification from "../models/notification.model.js";
+import Attendance from "../models/attendance.model.js";
 
 // Obtener todas las tareas del usuario actual
 export const getTasks = async (req, res) => {
@@ -56,7 +58,7 @@ export const createTask = async (req, res) => {
       date,
       responsible,
       image: imageUrl, // Guarda la URL pública
-      user: req.userId,
+      user: req.user.Id,
     });
     const populatedTask = await newTask.populate("user", "username email");
     res.status(201).json({ task: populatedTask });
@@ -69,14 +71,26 @@ export const createTask = async (req, res) => {
 // Eliminar una tarea por ID
 export const deleteTask = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(400).json({ message: "ID inválido" });
 
-    const deletedTask = await Task.findByIdAndDelete(req.params.id);
-    if (!deletedTask) return res.status(404).json({ message: "Task not found" });
+    const deletedTask = await Task.findByIdAndDelete(id);
+    if (!deletedTask)
+      return res.status(404).json({ message: "Task not found" });
 
-    return res.sendStatus(204);
+    //  Elimina las notificaciones asociadas
+    await Notification.deleteMany({ task: id });
+    console.log(`Notificaciones eliminadas para la actividad ${id}`);
+
+    // Eliminar asistencias asociadas
+    await Attendance.deleteMany({ task: id });
+    console.log(`Asistencias eliminadas para la actividad ${id}`);
+
+    return res.sendStatus(204); 
   } catch (error) {
+    console.error("Error al eliminar la actividad:", error);
     return res.status(500).json({ message: error.message });
   }
 };
@@ -138,7 +152,7 @@ export const getTask = async (req, res) => {
       taskId: taskId,
       $or: [
         { userId: req.user.id },           // Usuario logueado
-        { email: req.user.email }          // (Fallback si lo necesitas)
+        { email: req.user.email }         
       ]
     });
 

@@ -16,6 +16,11 @@ const notificationSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
+    type:{
+        type: String,
+        enum: ["confirmación", "recordatorio"],
+        default: "recordatorio",
+    }
 });
 
 export default mongoose.model("Notification", notificationSchema);
