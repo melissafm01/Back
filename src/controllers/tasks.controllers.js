@@ -166,7 +166,7 @@ export const searchTask = async (req, res) => {
       .populate("asistentes", "username");
 
     const formattedTasks = tasks.map((task) => ({
-      id: task._id,
+      _id: task._id,
       title: task.title,
       description: task.description,
       date: task.date,
