@@ -81,7 +81,7 @@ export const confirmAttendance = async (req, res) => {
   
 };
 
-// Cancelar asistencia
+
 // Cancelar asistencia
 export const cancelAttendance = async (req, res) => {
   try {
