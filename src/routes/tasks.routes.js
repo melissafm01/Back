@@ -16,8 +16,19 @@ from "../controllers/tasks.controllers.js";
 import { auth } from "../middlewares/auth.middleware.js";
 import { validateSchema } from "../middlewares/validator.middleware.js";
 import { createTaskSchema,  promotionSchema } from "../schemas/task.schema.js";
+import upload from "../middlewares/upload.middleware.js";
 
 const router = Router();
+
+// Creación de actividades con imagen
+router.post(
+  "/tasks",
+  auth,
+  upload.single("image"), //  Procesa la imagen antes de entrar al controlador
+  validateSchema(createTaskSchema),
+  createTask
+);
+
 
 //  ruta para obtener actividades promocionadas
 router.get("/tasks/promoted", auth, getPromotedTasks);

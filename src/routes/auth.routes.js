@@ -8,7 +8,8 @@ import {
   register,
   verifyToken,
   registerAdmin,
-  createInitialSuperAdmin // <- Crear super admin inicial
+  createInitialSuperAdmin,
+  sendPasswordResetEmail
 } from "../controllers/auth.controller.js";
 
 import { authorizeRoles } from "../middlewares/role.middleware.js";

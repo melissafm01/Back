@@ -63,6 +63,37 @@ export const deleteNotification = async (req, res) => {
   }
 };
 
+export const updateNotification = async (req, res) => {
+  const { daysBefore } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, user: userId },
+      { daysBefore },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ 
+        message: "Notificación no encontrada o no tienes permisos",
+        suggestion: "Verifica el ID y tus permisos"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Notificación actualizada correctamente",
+      data: notification
+    });
+  } catch (err) {res.status(500).json({ 
+      success: false,
+      message: "Error al actualizar notificación",
+      error: err.message,
+      systemSuggestion: "Intenta nuevamente o contacta al soporte"
+    });
+  }
+};
 
     
 
