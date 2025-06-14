@@ -227,7 +227,7 @@ export const searchTask = async (req, res) => {
     }
 
     const tasks = await Task.find(filters)
-      .populate("user", "username email")
+      .populate("user", "username email _id")
       .populate("asistentes", "username");
 
     const formattedTasks = tasks.map((task) => ({
@@ -237,6 +237,7 @@ export const searchTask = async (req, res) => {
       date: task.date,
       place: task.place,
       estado: task.estado,
+      isPromoted: task.isPromoted,
       totalAsistentes: task.asistentes?.length || 0,
       user: {
         username: task.user?.username,
