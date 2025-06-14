@@ -17,17 +17,27 @@ export const getTasks = async (req, res) => {
   }
 };
 
+
 // Crear una nueva tarea
 export const createTask = async (req, res) => {
- 
   try {
     const { title, description, place, date, responsible } = req.body;
 
+    // === Validación de fecha ===
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normaliza a medianoche
+    const taskDate = new Date(date);
+
+    if (taskDate < today) {
+      return res.status(400).json({ message: 'No puedes crear actividades con fecha pasada' });
+    }
+
+    // === Subida de imagen ===
     let imageUrl = null;
 
-    // Verificamos si hay archivo (imagen)
     if (req.file) {
-      const blob = bucket.file(`task-images/${Date.now()}_${req.file.originalname}`);
+      const filename = `task-images/${Date.now()}_${req.file.originalname}`;
+      const blob = bucket.file(filename);
 
       const blobStream = blob.createWriteStream({
         metadata: {
@@ -35,35 +45,34 @@ export const createTask = async (req, res) => {
         },
       });
 
-      // Promesa para esperar que la imagen se suba
       await new Promise((resolve, reject) => {
         blobStream.on('error', reject);
-
         blobStream.on('finish', async () => {
-          await blob.makePublic(); // Si deseas que sea accesible públicamente
+          await blob.makePublic();
           imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
           resolve();
         });
-
-        blobStream.end(req.file.buffer); // Envía el archivo a Firebase
+        blobStream.end(req.file.buffer);
       });
     }
 
-    // Guarda la actividad en la base de datos (ejemplo con mongoose)
-
+    // === Crear la tarea en la base de datos ===
     const newTask = await Task.create({
       title,
       description,
       place,
-      date,
+      date: taskDate,
       responsible,
-      image: imageUrl, // Guarda la URL pública
-      user: req.userId,
+      image: imageUrl,
+      user: req.userId, // Asocia con el usuario autenticado
     });
-    const populatedTask = await newTask.populate("user", "username email");
-    res.status(201).json({ task: populatedTask });
+
+    const populatedTask = await newTask.populate('user', 'username email');
+
+    res.status(201).json({ message: 'Actividad creada con éxito', task: populatedTask });
+
   } catch (error) {
-    console.error('Error al crear la actividad:', error);
+    console.error(' Error en createTask:', error);
     res.status(500).json({ message: 'Error al crear la actividad' });
   }
 };
@@ -113,6 +122,19 @@ export const updateTask = async (req, res) => {
       promocionada: !!promocionada,
       estado: promocionada ? "promocionadas" : "todas",
     };
+
+  if (date) {
+      const newDate = new Date(date);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Eliminar horas para comparar solo fechas
+
+      if (newDate < now) {
+        return res.status(400).json({ message: "No puedes establecer una fecha pasada para la tarea" });
+      }
+
+      updateData.date = newDate;
+    }
+
 
     const taskUpdated = await Task.findByIdAndUpdate(req.params.id, updateData, { new: true });
     return res.json(taskUpdated);
@@ -167,25 +189,7 @@ export const getTask = async (req, res) => {
   }
 };
 
-// Promocionar una tarea
 
-export const promoteTask = async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
-      return res.status(400).json({ message: "ID inválido" });
-
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: "Task not found" });
-
-    task.estado = "promocionada";
-    await task.save();
-
-    res.json({ message: "Tarea promocionada", task });
-  } catch (error) {
-    console.error("Error al promocionar tarea:", error.message);
-    res.status(500).json({ message: "Error interno del servidor" });
-  }
-};
 
 // Buscar tareas con filtros
 export const searchTask = async (req, res) => {
@@ -227,7 +231,7 @@ export const searchTask = async (req, res) => {
       .populate("asistentes", "username");
 
     const formattedTasks = tasks.map((task) => ({
-      id: task._id,
+      _id: task._id,
       title: task.title,
       description: task.description,
       date: task.date,
@@ -237,7 +241,9 @@ export const searchTask = async (req, res) => {
       user: {
         username: task.user?.username,
         email: task.user?.email,
+        _id: task.user?._id,
       },
+      isOwner: task.user?._id?.toString() === req.user.id, // <--- agrega esto
     }));
 
     res.json(formattedTasks);
