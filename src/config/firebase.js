@@ -1,5 +1,3 @@
-
-
 import admin from 'firebase-admin';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -25,4 +23,4 @@ if (!admin.apps.length) {
 const bucket = admin.storage().bucket();
 
 //  Exporta el bucket para usarlo en controladores
-export { bucket };
+export { admin, bucket };
