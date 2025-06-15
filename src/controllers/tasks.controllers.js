@@ -207,8 +207,12 @@ export const togglePromotion = async (req, res) => {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
 
-    if (task.user.toString() !== req.user.id)
-      return res.status(403).json({ message: "No tienes permiso para modificar esta actividad" });
+const isOwner = task.user.toString() === req.user.id;
+const isAdmin = req.user.role === "admin" || req.user.role === "superadmin";
+
+if (!isOwner && !isAdmin)
+  return res.status(403).json({ message: "No tienes permiso para modificar esta actividad" });
+
 
     const updatedTask = await Task.findByIdAndUpdate(
       req.params.id,
