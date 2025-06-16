@@ -34,18 +34,13 @@ router.get("/tasks/promoted", auth, getPromotedTasks);
 //  ruta para activar y desactivar promocion
 router.patch("/tasks/:id/promotion", auth, validateSchema(promotionSchema), togglePromotion);
 
-
 //Listado de actividades de usuarios//
 router.get("/tasks/others", auth, getOthersTasks);
 
-
-
 router.get("/tasks/search", auth, searchTask);
-
 
 //Creacion de actividades//
 router.get("/tasks", auth, getTasks);
-router.post("/tasks", auth, validateSchema(createTaskSchema), createTask);
 router.get("/tasks/:id", auth, getTask);
 router.put("/tasks/:id", auth, updateTask);
 router.delete("/tasks/:id", auth, deleteTask);
