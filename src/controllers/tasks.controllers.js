@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Task from "../models/task.model.js";
+import { bucket } from "../config/firebase.js";
 
 // Obtener todas las tareas del usuario actual
 export const getTasks = async (req, res) => {
@@ -17,32 +18,61 @@ export const getTasks = async (req, res) => {
 // Crear una nueva tarea
 export const createTask = async (req, res) => {
   try {
-    const { title, description, date, place, responsible } = req.body;
+    const { title, description, place, date, responsible } = req.body;
 
-    const now = new Date();
+    // === Validación de fecha ===
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normaliza a medianoche
     const taskDate = new Date(date);
 
-    // Verificar que la fecha no sea pasada
-    if (taskDate < now.setHours(0, 0, 0, 0)) {
-      return res.status(400).json({ message: "No puedes crear una actividad con fecha pasada" });
+    if (taskDate < today) {
+      return res.status(400).json({ message: 'No puedes crear actividades con fecha pasada' });
     }
 
-    const newTask = new Task({
+    // === Subida de imagen ===
+    let imageUrl = null;
+
+    if (req.file) {
+      const filename = `task-images/${Date.now()}_${req.file.originalname}`;
+      const blob = bucket.file(filename);
+
+      const blobStream = blob.createWriteStream({
+        metadata: {
+          contentType: req.file.mimetype,
+        },
+      });
+
+      await new Promise((resolve, reject) => {
+        blobStream.on('error', reject);
+        blobStream.on('finish', async () => {
+          await blob.makePublic();
+          imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+          resolve();
+        });
+        blobStream.end(req.file.buffer);
+      });
+    }
+
+    // === Crear la tarea en la base de datos ===
+    const newTask = await Task.create({
       title,
       description,
-      date: taskDate,
       place,
+      date: taskDate,
       responsible,
-      user: req.user.id,
+      image: imageUrl,
+      user: req.userId, // Asocia con el usuario autenticado
     });
 
-    await newTask.save();
-    res.json(newTask);
+    const populatedTask = await newTask.populate('user', 'username email');
+
+    res.status(201).json({ message: 'Actividad creada con éxito', task: populatedTask });
+
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.error(' Error en createTask:', error);
+    res.status(500).json({ message: 'Error al crear la actividad' });
   }
 };
-
 
 // Eliminar una tarea por ID
 export const deleteTask = async (req, res) => {

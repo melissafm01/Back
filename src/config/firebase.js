@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 
+
 dotenv.config();
 
 //  Asegura que estás obteniendo la ruta correcta al archivo JSON
@@ -23,4 +24,4 @@ if (!admin.apps.length) {
 const bucket = admin.storage().bucket();
 
 //  Exporta el bucket para usarlo en controladores
-export { bucket };
+export { admin, bucket };
