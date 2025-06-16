@@ -33,6 +33,11 @@ const taskSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    image:
+      {
+        type: String,
+        default: null, // Campo para la URL de la imagen
+      },
     estado: {
       type: String,
       enum: ["todas","promocionadas"],

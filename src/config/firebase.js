@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 
+
 dotenv.config();
 
 //  Asegura que estás obteniendo la ruta correcta al archivo JSON
