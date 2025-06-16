@@ -23,4 +23,4 @@ if (!admin.apps.length) {
 const bucket = admin.storage().bucket();
 
 //  Exporta el bucket para usarlo en controladores
-export { admin, bucket };
+export { bucket };
