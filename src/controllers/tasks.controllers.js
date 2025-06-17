@@ -18,11 +18,42 @@ export const getTasks = async (req, res) => {
 // Crear una nueva tarea
 export const createTask = async (req, res) => {
   try {
-    const { title, description, place, date, responsible } = req.body;
+    console.log("=== DEBUG: Datos recibidos ===");
+    console.log("req.body:", req.body);
+    console.log("req.file:", req.file);
+
+    const { title, description, place, date } = req.body;
+    
+    // === Procesar responsible ===
+    let responsible = [];
+    if (req.body.responsible) {
+      try {
+        // Si viene como string JSON, parsearlo
+        if (typeof req.body.responsible === 'string') {
+          responsible = JSON.parse(req.body.responsible);
+        } else if (Array.isArray(req.body.responsible)) {
+          responsible = req.body.responsible;
+        }
+        console.log("Responsible procesado:", responsible);
+      } catch (parseError) {
+        console.error("Error al parsear responsible:", parseError);
+        // Si falla el parse, tratarlo como string simple
+        responsible = req.body.responsible ? [req.body.responsible] : [];
+      }
+    }
+
+    // === Validación de campos requeridos ===
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: 'El título es requerido' });
+    }
 
     // === Validación de fecha ===
+    if (!date) {
+      return res.status(400).json({ message: 'La fecha es requerida' });
+    }
+
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normaliza a medianoche
+    today.setHours(0, 0, 0, 0);
     const taskDate = new Date(date);
 
     if (taskDate < today) {
@@ -33,6 +64,13 @@ export const createTask = async (req, res) => {
     let imageUrl = null;
 
     if (req.file) {
+      console.log("=== Procesando imagen ===");
+      console.log("File info:", {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      });
+
       const filename = `task-images/${Date.now()}_${req.file.originalname}`;
       const blob = bucket.file(filename);
 
@@ -47,30 +85,57 @@ export const createTask = async (req, res) => {
         blobStream.on('finish', async () => {
           await blob.makePublic();
           imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+          console.log("Imagen subida exitosamente:", imageUrl);
           resolve();
         });
         blobStream.end(req.file.buffer);
       });
+    } else {
+      console.log("=== Sin imagen - continuando sin imagen ===");
     }
 
     // === Crear la tarea en la base de datos ===
-    const newTask = await Task.create({
+    console.log("=== Creando tarea en BD ===");
+    console.log("Datos a guardar:", {
       title,
       description,
       place,
       date: taskDate,
       responsible,
       image: imageUrl,
-      user: req.userId, // Asocia con el usuario autenticado
+      user: req.user.id
+    });
+
+    const newTask = await Task.create({
+      title: title.trim(),
+      description: description?.trim() || '',
+      place: place?.trim() || '',
+      date: taskDate,
+      responsible: responsible,
+      image: imageUrl,
+      user: req.user.id,
     });
 
     const populatedTask = await newTask.populate('user', 'username email');
 
-    res.status(201).json({ message: 'Actividad creada con éxito', task: populatedTask });
+    console.log("=== Tarea creada exitosamente ===");
+    console.log("Tarea creada:", populatedTask);
+
+    res.status(201).json({ 
+      message: 'Actividad creada con éxito', 
+      task: populatedTask 
+    });
 
   } catch (error) {
-    console.error(' Error en createTask:', error);
-    res.status(500).json({ message: 'Error al crear la actividad' });
+    console.error('=== ERROR en createTask ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Full error:', error);
+    
+    res.status(500).json({ 
+      message: 'Error al crear la actividad',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -210,6 +275,8 @@ export const searchTask = async (req, res) => {
       place: task.place,
       estado: task.estado,
       isPromoted: task.isPromoted,
+      image: task.image, // ← AQUÍ agregamos la imagen
+      responsible: task.responsible,
       totalAsistentes: task.asistentes?.length || 0,
       user: {
         username: task.user?.username,

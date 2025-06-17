@@ -23,7 +23,7 @@ const router = Router();
 router.post(
   "/tasks",
   auth,
-  upload.single("image"), //  Procesa la imagen antes de entrar al controlador
+  upload.single("image"), // Procesa la imagen si existe, si no, continúa
   validateSchema(createTaskSchema),
   createTask
 );
