@@ -26,6 +26,7 @@ const taskSchema = new mongoose.Schema(
       type: mongoose.Types.ObjectId,
       ref: "User",
     },
+
     asistentes: [
       {
         type: mongoose.Types.ObjectId,
@@ -42,10 +43,29 @@ const taskSchema = new mongoose.Schema(
       enum: ["todas","promocionadas"],
       default: "todas",
     },
-    promocionada: {
-      type: Boolean,
-      default: false,
-    },
+
+
+    
+
+      status: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending"
+  },
+  approvedAt: Date,
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+  rejectedAt: Date,
+  rejectedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+  rejectionReason: String,
+
+    
+
 
     isPromoted: {    // Nuevo campo para promoción
       type: Boolean,
@@ -66,7 +86,23 @@ const taskSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+      toJSON: {
+    virtuals: true
   }
-);
+  });
+
+  // Índices para búsquedas rápidas
+taskSchema.index({ title: 'text', description: 'text', place: 'text' });
+taskSchema.index({ status: 1, isPromoted: 1 });
+taskSchema.index({ date: 1 });
+taskSchema.index({ user: 1 });
+
+// Virtual para contar asistentes
+taskSchema.virtual('attendeesCount', {
+  ref: 'Attendance',
+  localField: '_id',
+  foreignField: 'task',
+  count: true
+});
 
 export default mongoose.model("Task", taskSchema);
