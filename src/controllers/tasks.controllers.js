@@ -275,6 +275,8 @@ export const searchTask = async (req, res) => {
       place: task.place,
       estado: task.estado,
       isPromoted: task.isPromoted,
+      image: task.image, // ← AQUÍ agregamos la imagen
+      responsible: task.responsible,
       totalAsistentes: task.asistentes?.length || 0,
       user: {
         username: task.user?.username,
