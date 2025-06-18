@@ -70,14 +70,19 @@ export const updateUser = async (req, res) => {
     // Verificar que el usuario no sea superadmin
     const user = await User.findById(id);
     if (user.role === 'superadmin') {
-      return res.status(403).json({ message: "Cannot modify superadmin" });
+      return res.status(403).json({ message: "No se puede modificar el superadministrador" });
     }
     
+    // Verificar que un admin no pueda modificar a otro admin (excepto superadmin)
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: "Solo el super Administrador puede modificar un administrador" });
+    }
+
     // Verificar que el email no esté en uso
     if (email && email !== user.email) {
       const emailExists = await User.findOne({ email, _id: { $ne: id } });
       if (emailExists) {
-        return res.status(400).json({ message: "Email already in use" });
+        return res.status(400).json({ message: "Correo electrónico ya en uso" });
       }
     }
     
@@ -89,13 +94,14 @@ export const updateUser = async (req, res) => {
     ).select('-password');
     
     res.json({
-      message: "User updated successfully",
+      message: "Usuario actualizada con éxito",
       user: updatedUser
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // Activar/desactivar usuario
 export const toggleUserStatus = async (req, res) => {
@@ -106,9 +112,12 @@ export const toggleUserStatus = async (req, res) => {
     // Verificar que el usuario no sea superadmin
     const user = await User.findById(id);
     if (user.role === 'superadmin') {
-      return res.status(403).json({ message: "Cannot modify superadmin" });
+      return res.status(403).json({ message: "No se puede modificar el superadministrador" });
     }
-    
+        if (user.role === 'admin') {
+      return res.status(403).json({ message: "No se pueden modificar los  administradores" });
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       id,
       { isActive },
@@ -124,6 +133,7 @@ export const toggleUserStatus = async (req, res) => {
   }
 };
 
+
 // Eliminar usuario
 export const deleteUser = async (req, res) => {
   try {
@@ -132,21 +142,35 @@ export const deleteUser = async (req, res) => {
     // Verificar que el usuario no sea superadmin
     const user = await User.findById(id);
     if (user.role === 'superadmin') {
-      return res.status(403).json({ message: "Cannot delete superadmin" });
+      return res.status(403).json({ message: "No se puede eliminar el superadministrador" });
     }
-    
-    // Eliminar usuario y sus actividades
-    await Promise.all([
-      User.findByIdAndDelete(id),
-      Task.deleteMany({ user: id }),
-      Attendance.deleteMany({ user: id })
+
+        // Verificar que un admin no pueda eliminar a otro admin (excepto superadmin)
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: "Solo el super Administrador puede eliminar un Administrador " });
+    }
+
+    // Verificar si el usuario tiene interacciones
+    const [createdActivities, attendedActivities] = await Promise.all([
+      Task.countDocuments({ user: id }),
+      Attendance.countDocuments({ user: id })
     ]);
+
+    if (createdActivities > 0 || attendedActivities > 0) {
+      return res.status(400).json({ 
+        message: "No se puede eliminar al usuario porque ha interactuado con la plataforma (ha creado actividades o ha asistido a ellas)" 
+      });
+    }
+
+    // Si no tiene interacciones, proceder con la eliminación
+    await User.findByIdAndDelete(id);
     
-    res.json({ message: "User deleted successfully" });
+    res.json({ message: "Usuario eliminada exitosamente" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // Obtener estadísticas de usuarios
 export const getUserStats = async (req, res) => {

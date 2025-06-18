@@ -21,13 +21,16 @@ const userSchema = new mongoose.Schema(
       default: "user",
     },
 
-
-
-
        isActive: {
       type: Boolean,
-      default: true
+      default: true,
+      index: true
     },
+
+    lastInteraction: {
+    type: Date,
+    default: Date.now
+  },
     lastLogin: Date,
 
     profile: {

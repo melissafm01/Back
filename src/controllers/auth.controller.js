@@ -1,3 +1,4 @@
+
 import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
@@ -14,7 +15,7 @@ export const register = async (req, res) => {
 
     if (userFound)
       return res.status(400).json({
-        message: ["The email is already in use"],
+        message: ["El correo electrónico ya está en uso"],
       });
 
       
@@ -68,13 +69,21 @@ export const login = async (req, res) => {
 
     if (!userFound)
       return res.status(400).json({
-        message: ["The email does not exist"],      //en caso de q el email.no exista//
+        message: ["El correo electrónico no existe"],      //en caso de q el email.no exista//
       });
+
+    // Verificar si el usuario está activo
+    if (!userFound.isActive) {
+      return res.status(403).json({
+        message: ["Su cuenta ha sido desactivada. Por favor, contacte con el servicio de asistencia."],
+      });
+    }
+
 
     const isMatch = await bcrypt.compare(password, userFound.password);          //comparamos la contraseña normal con la haseada si coinciden es correscta //
     if (!isMatch) {
       return res.status(400).json({
-        message: ["The password is incorrect"],
+        message: ["La contraseña es incorrecta "],
       });
     }
 
@@ -118,9 +127,7 @@ export const verifyToken = async (req, res) => {
 
     //Buscar al usuario en la base de datos
     const userFound = await User.findById(user.id);  
-
-    if (!userFound) 
-    return res.sendStatus(401);  
+  if (!userFound || !userFound.isActive)  return res.sendStatus(401);  
 
 
     //si todo va bien  //
@@ -148,7 +155,7 @@ export const createInitialSuperAdmin = async (req, res) => {
     
     if (secretKey !== SUPER_ADMIN_SECRET) {
       return res.status(403).json({ 
-        message: ["Invalid secret key"] 
+        message: ["Clave secreta no válida"] 
       });
     }
 
@@ -156,7 +163,7 @@ export const createInitialSuperAdmin = async (req, res) => {
     const existingSuperAdmin = await User.findOne({ role: "superadmin" });
     if (existingSuperAdmin) {
       return res.status(400).json({ 
-        message: ["Super admin already exists"] 
+        message: ["El superadministrador ya existe"] 
       });
     }
 
@@ -164,7 +171,7 @@ export const createInitialSuperAdmin = async (req, res) => {
     const userFound = await User.findOne({ email });
     if (userFound) {
       return res.status(400).json({ 
-        message: ["Email is already taken"] 
+        message: ["El correo electrónico ya está en uso"] 
       });
     }
 
@@ -202,7 +209,7 @@ export const createInitialSuperAdmin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error creating super admin:", error);
+    console.error("Error al crear superadministrador:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -256,3 +263,4 @@ export const logout = async (req, res) => {
   return res.sendStatus(200);
 };
   
+
