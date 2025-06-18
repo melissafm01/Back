@@ -114,6 +114,7 @@ export const createTask = async (req, res) => {
       responsible: responsible,
       image: imageUrl,
       user: req.user.id,
+      status: 'pending'
     });
 
     const populatedTask = await newTask.populate('user', 'username email');
@@ -196,7 +197,7 @@ export const updateTask = async (req, res) => {
 // Obtener actividades de otros usuarios
 export const getOthersTasks = async (req, res) => {
   try {
-    const activities = await Task.find({ user: { $ne: req.user.id } })
+    const activities = await Task.find({ user: { $ne: req.user.id }, status: 'approved' })
       .populate("user", "email _id")
       .select("-__v");
 
@@ -233,7 +234,7 @@ export const searchTask = async (req, res) => {
 
   try {
     const { q, date, place, estado } = req.query;
-    const filters = {};
+    const filters = { status: 'approved'};
    
     if (q) {
       filters.$or = [
