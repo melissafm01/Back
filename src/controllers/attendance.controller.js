@@ -36,7 +36,7 @@ export const confirmAttendance = async (req, res) => {
       attendanceData = {
         ...attendanceData,
         user: req.user.id,
-        name: req.user.name || name,
+        name: req.user.name || req.user.name || name || "Asistente",
         email: req.user.email || email
       };
 
