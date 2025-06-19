@@ -286,3 +286,19 @@ export const getUserAttendances = async (req, res) => {
     });
   }
 };
+
+export const getNotifications = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Obtener notificaciones para el usuario
+    const notifications = await Notification.find({ user: userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Error al obtener notificaciones:", error);
+    res.status(500).json({ message: "Error al obtener notificaciones" });
+  }
+}
