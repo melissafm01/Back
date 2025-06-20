@@ -43,6 +43,10 @@ const taskSchema = new mongoose.Schema(
       enum: ["todas","promocionadas"],
       default: "todas",
     },
+
+
+    
+
       status: {
     type: String,
     enum: ["pending", "approved", "rejected"],
@@ -59,7 +63,10 @@ const taskSchema = new mongoose.Schema(
     ref: "User"
   },
   rejectionReason: String,
-  
+
+    
+
+
     isPromoted: {    // Nuevo campo para promoción
       type: Boolean,
       default: false

@@ -9,7 +9,7 @@ import Attendance from './models/attendance.model.js';
 
 const runNotificationCheck = async () => {
   const now = dayjs();
-
+ 
   try {
     const notifications = await Notification.find({})
       .populate("task")

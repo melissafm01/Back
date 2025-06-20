@@ -1,103 +1,59 @@
 import Attendance from '../models/attendance.model.js';
 import Task from '../models/task.model.js';
 import mongoose from 'mongoose';
-import Notification from '../models/notification.model.js';
 
 // Confirmar asistencia a una actividad
 export const confirmAttendance = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
     const { taskId, name, email } = req.body;
     if (!taskId) return res.status(400).json({ message: "taskId es requerido" });
-
-    const task = await Task.findById(taskId).session(session);
+    const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
-
     const isAuthenticated = !!req.user;
     const isCreator = isAuthenticated && task.user.toString() === req.user.id;
     const isManual = name && email;
 
-    let attendanceData = { task: taskId };
+    const attendanceData = { task: taskId };
 
-    // FLUJO: Usuario autenticado invitando a otro
     if (isAuthenticated && isManual) {
-      attendanceData = {
-        ...attendanceData,
-        name,
-        email: email.toLowerCase()
-      };
-
-      task.asistentes.push({ name, email: email.toLowerCase() }); // este flujo asume asistentes con estructura libre
-
-    // FLUJO: Usuario autenticado no creador
+      // Usuario autenticado registrando manualmente a otro
+      attendanceData.name = name;
+      attendanceData.email = email.toLowerCase();
     } else if (isAuthenticated && !isCreator) {
-      attendanceData = {
-        ...attendanceData,
-        user: req.user.id,
-        name: req.user.name || name,
-        email: req.user.email || email
-      };
-
-      task.asistentes.push(req.user.id); // ✅ CORREGIDO: solo el ObjectId
-
-    // FLUJO: Invitado no autenticado
+      // Usuario autenticado que no es el creador
+      attendanceData.user = req.user.id;
+      attendanceData.name = req.user.name || name;
+      attendanceData.email = req.user.email || email;
     } else if (!isAuthenticated) {
-      if (!name || !email) return res.status(400).json({ message: "Nombre y correo requeridos" });
-
-      const normalizedEmail = email.toLowerCase();
-      attendanceData = {
-        ...attendanceData,
-        name,
-        email: normalizedEmail
-      };
-
-      task.asistentes.push({ name, email: normalizedEmail }); // este flujo también permite estructura libre
-
-    // FLUJO: Creador auto-registrándose
+      // Invitado
+      if (!name || !email) return res.status(400).json({ message: "Nombre y correo requeridos para invitados" });
+      attendanceData.name = name;
+      attendanceData.email = email.toLowerCase();
     } else {
       return res.status(403).json({ message: "No puedes confirmar asistencia a tu propia actividad" });
     }
 
-    // Validación única
-    const duplicateCheck = await Attendance.findOne({
-      task: taskId,
-      $or: [
-        ...(attendanceData.user ? [{ user: attendanceData.user }] : []),
-        ...(attendanceData.email ? [{ email: attendanceData.email.toLowerCase() }] : [])
-      ]
-    }).session(session);
+    // Verificamos si ya existe una asistencia similar
+const existing = await Attendance.findOne({
+  task: taskId,
+  $or: [
+    // Si es usuario autenticado, verificar por user.id
+    ...(attendanceData.user ? [{ user: attendanceData.user }] : []),
+    // Si es invitado o registro manual, verificar por email exacto
+    ...(attendanceData.email ? [{ email: attendanceData.email.toLowerCase() }] : [])
+  ]
+});
 
-    if (duplicateCheck) {
-      await session.abortTransaction();
-      return res.status(400).json({ message: "Ya estás registrado para esta actividad" });
-    }
+    if (existing) return res.status(400).json({ message: "Ya estás registrado para esta actividad" });
 
-    // Guardado atómico
-    await task.save({ session });
-    const newAttendance = await Attendance.create([attendanceData], { session });
-    
-    if (req.user) {
-      await Notification.create([{
-        user: req.user.id,
-        task: taskId,
-        daysBefore: 0,
-        type: 'confirmación'
-      }], { session });
-    }
-
-    await session.commitTransaction();
-    return res.status(201).json({ message: "Asistencia confirmada", attendance: newAttendance[0] });
-
+    const newAttendance = await Attendance.create(attendanceData);
+    return res.status(201).json({ message: "Asistencia confirmada", attendance: newAttendance });
   } catch (error) {
-    await session.abortTransaction();
-    console.error("Error:", error);
+    console.error("Error al confirmar asistencia:", error);
     res.status(500).json({ message: "Error al confirmar asistencia" });
-  } finally {
-    session.endSession();
   }
 };
+
 
 
 // Cancelar asistencia
