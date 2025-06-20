@@ -2,6 +2,7 @@ import Attendance from '../models/attendance.model.js';
 import Task from '../models/task.model.js';
 import mongoose from 'mongoose';
 import Notification from '../models/notification.model.js';
+import { sendEmail } from '../libs/sendEmail.js';
 
 // Confirmar asistencia a una actividad
 export const confirmAttendance = async (req, res) => {
@@ -85,6 +86,14 @@ export const confirmAttendance = async (req, res) => {
         daysBefore: 0,
         type: 'confirmación'
       }], { session });
+    }
+    if(req.user?.email) {
+      await sendEmail({
+        to: req.user.email,
+        subject: `Confirmación de asistencia a: ${task.title}`,
+        text: `Hola ${req.user.username || req.user.name || 'usuario'}, confirmaste tu participación en la actividad "${task.title}" el ${task.date.toLocaleDateString()}. ¡Nos vemos allá!`
+      });
+      console.log("⚠️ Notificación creada para:", req.user.id);
     }
 
     await session.commitTransaction();
@@ -286,19 +295,3 @@ export const getUserAttendances = async (req, res) => {
     });
   }
 };
-
-export const getNotifications = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // Obtener notificaciones para el usuario
-    const notifications = await Notification.find({ user: userId })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    res.json(notifications);
-  } catch (error) {
-    console.error("Error al obtener notificaciones:", error);
-    res.status(500).json({ message: "Error al obtener notificaciones" });
-  }
-}

@@ -9,7 +9,7 @@ import {
   exportAttendance,
   checkAttendance,
   getUserAttendances,
-  getNotifications
+ 
 
 } from "../controllers/attendance.controller.js";
 
@@ -23,7 +23,7 @@ router.get('/check/:taskId', checkAttendance);
 router.get("/export/:taskId", auth, exportAttendance);
 router.get("/:taskId", auth, getAttendance); // Esta debe ir después de las rutas específicas
 
-router.get("/notificaciones-asistencia", auth, getNotifications);
+
 // Rutas de modificación
 router.post("/confirm", auth, confirmAttendance);
 router.delete("/cancel/:taskId", cancelAttendance);
