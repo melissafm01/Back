@@ -1,12 +1,17 @@
 import Attendance from '../models/attendance.model.js';
 import Task from '../models/task.model.js';
 import mongoose from 'mongoose';
+import { sendEmail } from '../libs/sendEmail.js';
 import Notification from '../models/notification.model.js';
 import { sendEmail } from '../libs/sendEmail.js';
 
 // Confirmar asistencia a una actividad
 export const confirmAttendance = async (req, res) => {
   const session = await mongoose.startSession();
+  let emailToSend = null;
+  let emailSubject = "";
+  let emailText = "";
+
   try {
     session.startTransaction();
 
@@ -22,70 +27,78 @@ export const confirmAttendance = async (req, res) => {
 
     let attendanceData = { task: taskId };
 
-    // FLUJO: Usuario autenticado invitando a otro
+    // Usuario autenticado invitando a otro
     if (isAuthenticated && isManual) {
       attendanceData = {
         ...attendanceData,
         name,
-        email: email.toLowerCase()
+        email: email.toLowerCase(),
       };
 
-      task.asistentes.push({ name, email: email.toLowerCase() }); // este flujo asume asistentes con estructura libre
-
-    // FLUJO: Usuario autenticado no creador
+    // Usuario autenticado confirmando asistencia propia
     } else if (isAuthenticated && !isCreator) {
       attendanceData = {
         ...attendanceData,
         user: req.user.id,
-        name: req.user.name || req.user.name || name || "Asistente",
-        email: req.user.email || email
+        name: req.user.name || name || 'Asistente',
+        email: req.user.email || email,
       };
 
-      task.asistentes.push(req.user.id); // ✅ CORREGIDO: solo el ObjectId
-
-    // FLUJO: Invitado no autenticado
+    // Invitado no autenticado
     } else if (!isAuthenticated) {
-      if (!name || !email) return res.status(400).json({ message: "Nombre y correo requeridos" });
+      if (!name || !email)
+        return res.status(400).json({ message: "Nombre y correo requeridos" });
 
-      const normalizedEmail = email.toLowerCase();
       attendanceData = {
         ...attendanceData,
         name,
-        email: normalizedEmail
+        email: email.toLowerCase(),
       };
 
-      task.asistentes.push({ name, email: normalizedEmail }); // este flujo también permite estructura libre
-
-    // FLUJO: Creador auto-registrándose
+    // Creador intentando registrarse
     } else {
       return res.status(403).json({ message: "No puedes confirmar asistencia a tu propia actividad" });
     }
 
-    // Validación única
-    const duplicateCheck = await Attendance.findOne({
+    // Verificación de duplicados
+    const duplicate = await Attendance.findOne({
       task: taskId,
       $or: [
         ...(attendanceData.user ? [{ user: attendanceData.user }] : []),
-        ...(attendanceData.email ? [{ email: attendanceData.email.toLowerCase() }] : [])
-      ]
+        ...(attendanceData.email ? [{ email: attendanceData.email.toLowerCase() }] : []),
+      ],
     }).session(session);
 
-    if (duplicateCheck) {
+    if (duplicate) {
       await session.abortTransaction();
       return res.status(400).json({ message: "Ya estás registrado para esta actividad" });
     }
 
-    // Guardado atómico
-    await task.save({ session });
+    // Guardar asistencia
     const newAttendance = await Attendance.create([attendanceData], { session });
-    
+
+    // Crear notificación y preparar correo para autenticados
     if (req.user) {
       await Notification.create([{
         user: req.user.id,
         task: taskId,
         daysBefore: 0,
-        type: 'confirmación'
+        type: 'confirmación',
       }], { session });
+
+      if (req.user.email) {
+        emailToSend = req.user.email;
+        emailSubject = `Confirmación de asistencia a: ${task.title}`;
+        emailText = `Hola ${req.user.username || req.user.name || 'usuario'}, confirmaste tu participación en la actividad "${task.title}" el ${task.date.toLocaleDateString()}.`;
+        console.log("⚠️ Notificación creada para:", req.user.id);
+      }
+
+    // Preparar correo para invitados
+    } else if (!req.user && email) {
+      emailToSend = email.toLowerCase();
+      emailSubject = `Confirmación de asistencia a: ${task.title}`;
+      emailText = `Hola ${name || 'invitado'}, has confirmado tu participación en la actividad "${task.title}" el ${task.date.toLocaleDateString()}.`;
+      console.log("⚠️ Correo preparado para invitado:", emailToSend);
     }
     if(req.user?.email) {
       await sendEmail({
@@ -97,11 +110,25 @@ export const confirmAttendance = async (req, res) => {
     }
 
     await session.commitTransaction();
-    return res.status(201).json({ message: "Asistencia confirmada", attendance: newAttendance[0] });
+    res.status(201).json({ message: "Asistencia confirmada", attendance: newAttendance[0] });
+
+    // Enviar correo fuera de la transacción
+    if (emailToSend) {
+      try {
+        await sendEmail({
+          to: emailToSend,
+          subject: emailSubject,
+          text: emailText,
+        });
+        console.log("📧 Correo enviado a:", emailToSend);
+      } catch (emailErr) {
+        console.error("❌ Error al enviar correo:", emailErr.message);
+      }
+    }
 
   } catch (error) {
     await session.abortTransaction();
-    console.error("Error:", error);
+    console.error("Error al confirmar asistencia:", error);
     res.status(500).json({ message: "Error al confirmar asistencia" });
   } finally {
     session.endSession();

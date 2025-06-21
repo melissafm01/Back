@@ -29,10 +29,8 @@ const taskSchema = new mongoose.Schema(
 
     asistentes: [
       {
-        user:{type: mongoose.Schema.Types.ObjectId, ref: "User"},
-        name: String, // Nombre del asistente
-        email: String
-            
+        type: mongoose.Types.ObjectId,
+        ref: "User",
       },
     ],
     image:

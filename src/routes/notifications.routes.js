@@ -9,5 +9,4 @@ router.get("/notifications", auth, getUserNotifications);
 router.delete("/notifications/:id", auth, deleteNotification);
 router.put("/notifications/:id", auth, updateNotification);
 
-
 export default router;
