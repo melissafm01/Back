@@ -7,7 +7,7 @@ import { sendEmail } from './libs/sendEmail.js';
 import { sendPushNotification } from './libs/sendPushNotification.js';
 import Attendance from './models/attendance.model.js';
 
-const runNotificationCheck = async () => {
+export const runNotificationCheck = async (io) => {
   const now = dayjs();
  
   try {
@@ -59,6 +59,15 @@ const runNotificationCheck = async () => {
         console.error(`Error al enviar push a ${user.username}:`, pushErr.message);
       }
     }
+    if (io && type === "recordatorio") {
+      io.to(user._id.toString()).emit("notification", {
+        title: subject,
+        message: text,
+        taskId: task._id,
+        type: "recordatorio", // Tipo de notificación
+      });
+      console.log(`Notificación enviada en tiempo real a ${user.username}`);
+    }
   }
 }
 
@@ -67,7 +76,8 @@ const runNotificationCheck = async () => {
   }
 };
 
-export const startNotificationCron = () => {
-  cron.schedule("* * * * *", runNotificationCheck); // Cada minuto por ahora (puedes cambiar a '0 8 * * *' para 8am diaria)
+export const startNotificationCron = (io) => {
+  cron.schedule("0 1 * * *", () => runNotificationCheck(io)); // Cada día a la 1am
   console.log("Cron de notificaciones iniciado");
+
 };

@@ -1,4 +1,4 @@
-import Attendance from '../models/attendance.model.js';
+/*import Attendance from '../models/attendance.model.js';
 import Task from '../models/task.model.js';
 import mongoose from 'mongoose';
 import { sendEmail } from '../libs/sendEmail.js';
@@ -133,7 +133,135 @@ export const confirmAttendance = async (req, res) => {
   } finally {
     session.endSession();
   }
+};*/
+import mongoose from 'mongoose';
+import Task from '../models/task.model.js';
+import Attendance from '../models/attendance.model.js';
+import Notification from '../models/notification.model.js';
+import { sendEmail } from '../libs/sendEmail.js';
+
+export const confirmAttendance = async (req, res) => {
+  const session = await mongoose.startSession();
+  let emailToSend = null;
+  let emailSubject = "";
+  let emailText = "";
+
+  try {
+    session.startTransaction();
+
+    const { taskId, name, email } = req.body;
+    if (!taskId) return res.status(400).json({ message: "taskId es requerido" });
+
+    const task = await Task.findById(taskId).session(session);
+    if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
+
+    const isAuthenticated = !!req.user;
+    const isCreator = isAuthenticated && task.user.toString() === req.user.id;
+    const isManual = name && email;
+
+    let attendanceData = { task: taskId };
+    
+
+    // Usuario autenticado invitando a otro
+    if (isAuthenticated && isManual) {
+      attendanceData = {
+        ...attendanceData,
+        name,
+        email: email.toLowerCase(),
+      };
+
+    // Usuario autenticado confirmando asistencia propia
+    } else if (isAuthenticated && !isCreator) {
+      attendanceData = {
+        ...attendanceData,
+        user: req.user.id,
+        name: req.user.name || name || 'Asistente',
+        email: req.user.email || email,
+      };
+
+    // Invitado no autenticado
+    } else if (!isAuthenticated) {
+      if (!name || !email)
+        return res.status(400).json({ message: "Nombre y correo requeridos" });
+
+      attendanceData = {
+        ...attendanceData,
+        name,
+        email: email.toLowerCase(),
+      };
+
+    // Creador intentando registrarse
+    } else {
+      return res.status(403).json({ message: "No puedes confirmar asistencia a tu propia actividad" });
+    }
+
+    // Verificación de duplicados
+    const duplicate = await Attendance.findOne({
+      task: taskId,
+      $or: [
+        ...(attendanceData.user ? [{ user: attendanceData.user }] : []),
+        ...(attendanceData.email ? [{ email: attendanceData.email.toLowerCase() }] : []),
+      ],
+    }).session(session);
+
+    if (duplicate) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Ya estás registrado para esta actividad" });
+    }
+
+    // Guardar asistencia
+    const newAttendance = await Attendance.create([attendanceData], { session });
+
+    // Crear notificación y preparar correo para autenticados
+    if (req.user) {
+      await Notification.create([{
+        user: req.user.id,
+        task: taskId,
+        daysBefore: 0,
+        type: 'confirmación',
+      }], { session });
+
+      if (req.user.email) {
+        emailToSend = req.user.email;
+        emailSubject = `Confirmación de asistencia a: ${task.title}`;
+        emailText = `Hola ${req.user.username || req.user.name || 'usuario'}, confirmaste tu participación en la actividad "${task.title}" el ${task.date.toLocaleDateString()}.`;
+        console.log("⚠️ Notificación creada para:", req.user.id);
+      }
+
+    // Preparar correo para invitados
+    } else if (!req.user && email) {
+      emailToSend = email.toLowerCase();
+      emailSubject = `Confirmación de asistencia a: ${task.title}`;
+      emailText = `Hola ${name || 'invitado'}, has confirmado tu participación en la actividad "${task.title}" el ${task.date.toLocaleDateString()}.`;
+      console.log("⚠️ Correo preparado para invitado:", emailToSend);
+    }
+
+    await session.commitTransaction();
+    res.status(201).json({ message: "Asistencia confirmada", attendance: newAttendance[0] });
+
+    // Enviar correo fuera de la transacción
+    if (emailToSend) {
+      try {
+        await sendEmail({
+          to: emailToSend,
+          subject: emailSubject,
+          text: emailText,
+        });
+        console.log("📧 Correo enviado a:", emailToSend);
+      } catch (emailErr) {
+        console.error("❌ Error al enviar correo:", emailErr.message);
+      }
+    }
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Error al confirmar asistencia:", error);
+    res.status(500).json({ message: "Error al confirmar asistencia" });
+  } finally {
+    session.endSession();
+  }
 };
+
 
 
 // Cancelar asistencia

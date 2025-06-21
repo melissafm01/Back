@@ -12,6 +12,7 @@ import adminPanelRoutes from "./routes/adminPanel.routes.js";
 
 const app = express();
 
+
 app.use(
   cors({
     credentials: true,
