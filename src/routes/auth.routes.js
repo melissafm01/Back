@@ -5,7 +5,8 @@ import {
   register,
   verifyToken,
   registerAdmin,
-  createInitialSuperAdmin , // <- Crear super admin inicial
+  createInitialSuperAdmin, 
+  verifyEmail,
  /*loginWithGoogle,
  sendPasswordResetEmail*/
 } from "../controllers/auth.controller.js";
@@ -29,6 +30,7 @@ router.post("/register", validateSchema(registerSchema), register);
 router.post("/login", validateSchema(loginSchema), login);
 router.get("/verify", verifyToken);
 router.post("/logout",  logout);
+router.get("/verificar-email",verifyEmail)
 /*router.post("/google", loginWithGoogle);
 router.post("/password-reset", sendPasswordResetEmail);*/
 export default router;

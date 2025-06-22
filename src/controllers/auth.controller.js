@@ -4,64 +4,69 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { TOKEN_SECRET } from "../config.js";
 import { createAccessToken } from "../libs/jwt.js";
-
-
+import { admin } from "../config/firebase.js";
+import { sendEmail } from "../libs/sendEmail.js"
+import crypto from "crypto"; // Para generar un token de verificación aleatorio
 
 export const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body; 
+    const { username, email, password } = req.body;
 
-    const userFound = await User.findOne({ email });   
+    const userFound = await User.findOne({ email });
 
     if (userFound)
-      return res.status(400).json({
-        message: ["El correo electrónico ya está en uso"],
-      });
+      return res.status(400).json({ message: ["El correo electrónico ya está en uso"] });
 
-      
+    const passwordHash = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString("hex");
 
-   
-    const passwordHash = await bcrypt.hash(password, 10); 
-
-   
     const newUser = new User({
       username,
       email,
       password: passwordHash,
+      isVerified: false,
+      verificationToken,
     });
 
     const userSaved = await newUser.save();
-  
+
+    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+
+    await sendEmail({
+      to: email,
+      subject: "Verifica tu cuenta",
+      text: `Hola ${username},
+
+Gracias por unirte a PanasCOOP 🎉
+
+Confirma tu cuenta haciendo clic en el siguiente enlace:
+${verificationLink}
+
+Si no creaste esta cuenta, ignora este correo.
+
+Un abrazo solidario de parte de PanasCOOP`,
+    });
 
     const token = await createAccessToken({
       id: userSaved._id,
     });
 
-
-    // guardar el token en la cookie
     res.cookie("token", token, {
       httpOnly: process.env.NODE_ENV !== "development",
       secure: true,
       sameSite: "none",
     });
 
-
-    res.json({
-      id: userSaved._id,
-      username: userSaved.username,
-      email: userSaved.email,
+    res.status(201).json({
+      message: "Usuario registrado. Revisa tu correo para verificar la cuenta.",
     });
-
   } catch (error) {
+    console.error("Error en el registro:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
-
-
-
-
-export const login = async (req, res) => {
+ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -72,13 +77,18 @@ export const login = async (req, res) => {
         message: ["El correo electrónico no existe"],      //en caso de q el email.no exista//
       });
 
+
     // Verificar si el usuario está activo
     if (!userFound.isActive) {
       return res.status(403).json({
         message: ["Su cuenta ha sido desactivada. Por favor, contacte con el servicio de asistencia."],
       });
     }
-
+    if (!userFound.isVerified) {
+  return res.status(403).json({
+    message: ["Debes verificar tu cuenta antes de iniciar sesión"],
+  });
+}
 
     const isMatch = await bcrypt.compare(password, userFound.password);          //comparamos la contraseña normal con la haseada si coinciden es correscta //
     if (!isMatch) {
@@ -301,3 +311,28 @@ export const sendPasswordResetEmail = async (req, res) => {
   }
 };
   */
+
+export const verifyEmail = async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).json({ message: "Token no proporcionado" });
+  }
+
+  try {
+    const user = await User.findOne({ verificationToken: token });
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado o token inválido" });
+    }
+
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Correo electrónico verificado exitosamente" });
+  } catch (error) {
+    console.error("Error al verificar el correo:", error);
+    res.status(500).json({ message: "Error interno al verificar el correo" });
+  }
+}
