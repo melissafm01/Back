@@ -1,6 +1,6 @@
 import { config } from "dotenv";
 import Notification from "../models/notification.model.js";
-import User from "../models/user.model.js"; // Agregar import faltante
+import User from "../models/user.model.js"; 
 import { sendPushNotification } from "../libs/sendPushNotification.js";
 
 export const saveNotificationConfig = async (req, res) => {

@@ -61,7 +61,10 @@ export const runNotificationCheck = async (io) => {
      console.log(`🔍 Verificando asistencia del usuario...`);
       const stillAttending = await Attendance.findOne({ 
         task: task._id, 
-        user: user._id 
+        $or:[
+          {user: user._id},
+          {email: user.email?.tolowerCase()}, 
+        ]
       });
       
       if (!stillAttending) {
