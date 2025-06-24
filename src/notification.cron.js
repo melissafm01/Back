@@ -58,7 +58,7 @@ export const runNotificationCheck = async (io) => {
       console.log(`🏷️ Tipo: ${type}`);
 
       // 4. Verificar si el usuario aún está registrado como asistente
-     /* console.log(`🔍 Verificando asistencia del usuario...`);
+     console.log(`🔍 Verificando asistencia del usuario...`);
       const stillAttending = await Attendance.findOne({ 
         task: task._id, 
         user: user._id 
@@ -69,7 +69,7 @@ export const runNotificationCheck = async (io) => {
         continue;
       }
       console.log(`✅ Usuario confirmado como asistente`);
-*/
+
       // 5. Calcular fechas
       const taskDate = dayjs(task.date);
       const notifyDate = taskDate.subtract(daysBefore, 'day').startOf('day');

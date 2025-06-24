@@ -355,7 +355,7 @@ export const logout = async (req, res) => {
   return res.sendStatus(200);
 };
 
-/*
+
 export const loginWithGoogle = async (req, res) => {
   const { idToken } = req.body;
 
@@ -391,4 +391,4 @@ export const sendPasswordResetEmail = async (req, res) => {
     res.status(400).json({ message: "Error al enviar enlace de recuperación" });
   }
 };
-  */
+  

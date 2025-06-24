@@ -7,9 +7,9 @@ import {
   registerAdmin,
   createInitialSuperAdmin,
   verifyEmail,
-  resendVerificationEmail
-  /*loginWithGoogle,
-  sendPasswordResetEmail*/
+  resendVerificationEmail,
+  loginWithGoogle,
+  sendPasswordResetEmail
 } from "../controllers/auth.controller.js";
 
 import { authorizeRoles } from "../middlewares/role.middleware.js";
@@ -58,7 +58,7 @@ router.get("/verify-email", verifyEmail);
 router.post("/verify-email", verifyEmail);
 router.post("/resend-verification", resendVerificationEmail);
 
-/*router.post("/google", loginWithGoogle);
-router.post("/password-reset", sendPasswordResetEmail);*/
+router.post("/google", loginWithGoogle);
+router.post("/password-reset", sendPasswordResetEmail);
 
 export default router;
