@@ -63,7 +63,7 @@ export const runNotificationCheck = async (io) => {
         task: task._id, 
         $or:[
           {user: user._id},
-          {email: user.email?.tolowerCase()}, 
+          {email: user.email?.toLowerCase()}, 
         ]
       });
       
@@ -184,7 +184,7 @@ export const startNotificationCron = (io) => {
   console.log("🕐 Configurando cron de notificaciones...");
   
   // Para pruebas: ejecutar cada minuto
-  // Para producción: cambiar a "0 1 * * *" (1am diariamente)
+ 
   const cronPattern = "0 * * * *"; // Cada minuto para pruebas
   
   cron.schedule(cronPattern, () => {
