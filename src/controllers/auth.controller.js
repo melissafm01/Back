@@ -6,6 +6,7 @@ import { createAccessToken } from "../libs/jwt.js";
 import { admin } from "../config/firebase.js";
 import { sendEmail } from "../libs/sendEmail.js"
 import crypto from "crypto";
+import { getAuth } from "../config/firebase.js";
 
 export const register = async (req, res) => {
   try {

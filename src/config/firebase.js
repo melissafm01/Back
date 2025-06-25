@@ -23,5 +23,11 @@ if (!admin.apps.length) {
 //  Obtén el bucket de Firebase Storage
 const bucket = admin.storage().bucket();
 
+export const getAuth = () => {
+  if (!admin.apps.length) {
+    throw new Error("Firebase Admin no está inicializado");
+  }
+  return admin.auth();
+};
 //  Exporta el bucket para usarlo en controladores
 export { admin, bucket };
