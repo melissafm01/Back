@@ -141,7 +141,7 @@ export const runNotificationCheck = async (io) => {
               type: type || "recordatorio",
               timestamp: new Date(),
               read: false,
-              userId: user._id // Agregar userId para debug
+              userId: user._id
             };
 
             // Debug: verificar salas antes de enviar

@@ -14,12 +14,12 @@ const taskSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    place: {  // Nuevo campo: lugar de la actividad
+    place: { 
       type: String,
       required:true,
     },
-    responsible: {  // Nuevo campo: responsables
-      type: [String], // Array de strings para múltiples responsables
+    responsible: { 
+      type: [String], 
       required: false,
     },
     user: {
@@ -44,14 +44,12 @@ const taskSchema = new mongoose.Schema(
       default: "todas",
     },
 
-
-    
-
-      status: {
+    status: {
     type: String,
     enum: ["pending", "approved", "rejected"],
     default: "pending"
   },
+
   approvedAt: Date,
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -64,20 +62,16 @@ const taskSchema = new mongoose.Schema(
   },
   rejectionReason: String,
 
-    
-
-
-    isPromoted: {    // Nuevo campo para promoción
+    isPromoted: {    //campo para promoción
       type: Boolean,
       default: false
     },
-    // Configuración de la promoción (opcional)
-    promotion: {
+     promotion: {
       startDate: {
         type: Date,
         default: null
       },
-      // Fecha de fin de la promoción
+   
       endDate: {
         type: Date,
         default: null 

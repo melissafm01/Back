@@ -355,10 +355,13 @@ export const logout = async (req, res) => {
   res.cookie("token", "", {
     httpOnly: true,
     secure: true,
+    sameSite: "None", 
+    path: "/",        
     expires: new Date(0),
   });
   return res.sendStatus(200);
-};
+};;
+
 
 export const loginWithGoogle = async (req, res) => {
   const { idToken } = req.body;
@@ -437,7 +440,7 @@ export const sendPasswordResetEmail = async (req, res) => {
     // Generar token de restablecimiento
     const resetToken = crypto.randomBytes(32).toString("hex");
     
-    // Guardar el token en el usuario (necesitarás agregar estos campos al modelo)
+    // Guardar el token en el usuario 
     user.passwordResetToken = resetToken;
     user.passwordResetExpires = Date.now() + 3600000; // 1 hora
     await user.save();

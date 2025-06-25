@@ -10,7 +10,7 @@ import {
   resendVerificationEmail,
   loginWithGoogle,
   sendPasswordResetEmail,
-  resetPassword  // <- AGREGAR ESTA IMPORTACIÓN
+  resetPassword  
 } from "../controllers/auth.controller.js";
 
 import { authorizeRoles } from "../middlewares/role.middleware.js";
@@ -61,6 +61,6 @@ router.post("/resend-verification", resendVerificationEmail);
 
 router.post("/google", loginWithGoogle);
 router.post("/password-reset", sendPasswordResetEmail);
-router.post("/reset-password", resetPassword);  // <- AGREGAR ESTA RUTA
+router.post("/reset-password", resetPassword);  
 
 export default router;
