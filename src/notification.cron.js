@@ -186,7 +186,7 @@ export const startNotificationCron = (io) => {
   
   // Para pruebas: ejecutar cada minuto
   // Para producción: cambiar a "0 1 * * *" (1am diariamente)
-  const cronPattern = "0 7 * * *"; // Ejecutar a las 7am diariamente
+  const cronPattern = "0 1 * * *"; // Ejecutar a las 7am diariamente
   
   cron.schedule(cronPattern, () => {
     console.log(`\n⏰ CRON ACTIVADO: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`);
