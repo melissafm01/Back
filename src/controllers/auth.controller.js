@@ -84,6 +84,11 @@ export const login = async (req, res) => {
       });
     }
 
+    // Actualizar fechas de login e interacción
+    userFound.lastLogin = new Date();
+    userFound.lastInteraction = new Date();
+    await userFound.save();
+
     const token = await createAccessToken({
       id: userFound._id,
       username: userFound.username,
@@ -279,7 +284,7 @@ export const createInitialSuperAdmin = async (req, res) => {
       password: passwordHash,
       role: "superadmin",
       isVerified: true,
-      isActive: true, // CORRECCIÓN: Asegurar que esté activo
+      isActive: true,
     });
 
     const superAdminSaved = await newSuperAdmin.save();
@@ -327,7 +332,7 @@ export const registerAdmin = async (req, res) => {
       password: passwordHash,
       role: "admin",
       isVerified: true,
-      isActive: true, // CORRECCIÓN: Asegurar que esté activo
+      isActive: true,
     });
 
     const adminSaved = await newAdmin.save();
@@ -355,40 +360,167 @@ export const logout = async (req, res) => {
   return res.sendStatus(200);
 };
 
-
 export const loginWithGoogle = async (req, res) => {
   const { idToken } = req.body;
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { id, name, email } = decodedToken;
+    const { uid, name, email } = decodedToken;
 
     let user = await User.findOne({ email });
 
     if (!user) {
-      user = await User.create({ name, email, googleId: id });
+      user = new User({
+        username: name || email.split('@')[0],
+        email,
+        googleId: uid,
+        isVerified: true,
+        isActive: true,
+        role: 'user',
+        password: 'google-oauth-user' // Placeholder para usuarios de Google
+      });
+      await user.save();
     }
 
-    // Ahora genera tu propio JWT
-    const token = generateJWT(user); // <-- tu función JWT
+    // Actualizar último login
+    user.lastLogin = new Date();
+    user.lastInteraction = new Date();
+    await user.save();
 
-    res.json({ token, user });
+    const token = await createAccessToken({
+      id: user._id,
+      username: user.username,
+    });
+
+    res.cookie("token", token, {
+      httpOnly: process.env.NODE_ENV !== "development",
+      secure: true,
+      sameSite: "none",
+    });
+
+    res.json({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+    });
   } catch (error) {
+    console.error("Error en login con Google:", error);
     res.status(401).json({ message: "Token inválido de Google" });
   }
 };
 
-// si el usuario olvida la contraseña, puede solicitar un enlace de restablecimiento por medio de su corrreo y gracias a firebase se le enviara un enlace para que pueda restablecer su contraseña
-export const sendPasswordResetEmail = async (req, res) => {
-  const { email } = req.body;
 
+// FUNCIÓN CORREGIDA: Restablecimiento de contraseña usando tu propia lógica
+export const sendPasswordResetEmail = async (req, res) => {
   try {
-    const link = await getAuth().generatePasswordResetLink(email);
-    // Aquí podrías enviar este link por correo usando nodemailer (opcional)
-    res.json({ message: "Enlace de recuperación generado", resetLink: link });
+    const { email } = req.body;
+
+    // Validar que el email esté presente
+    if (!email) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Email es requerido" 
+      });
+    }
+
+    // Buscar el usuario en tu base de datos
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({ 
+        success: false,
+        message: "No existe una cuenta con este correo electrónico" 
+      });
+    }
+
+    // Generar token de restablecimiento
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    
+    // Guardar el token en el usuario (necesitarás agregar estos campos al modelo)
+    user.passwordResetToken = resetToken;
+    user.passwordResetExpires = Date.now() + 3600000; // 1 hora
+    await user.save();
+
+    // Crear enlace de restablecimiento
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+    // Enviar email
+    await sendEmail({
+      to: email,
+      subject: "Restablece tu contraseña - PanasCOOP",
+      text: `Hola ${user.username},
+
+      Recibimos una solicitud para restablecer tu contraseña en PanasCOOP.
+      
+      Haz clic en el siguiente enlace para restablecer tu contraseña:
+      ${resetLink}
+
+      Este enlace expirará en 1 hora.
+      
+      Si no solicitaste este restablecimiento, ignora este correo.
+      
+      Un abrazo solidario de parte de PanasCOOP`,
+    });
+
+    res.json({ 
+      success: true,
+      message: "Se ha enviado un enlace de restablecimiento a tu correo electrónico" 
+    });
+
   } catch (error) {
-    console.error("Error al generar el enlace de recuperación:", error);
-    res.status(400).json({ message: "Error al enviar enlace de recuperación" });
+    console.error("Error al enviar enlace de restablecimiento:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Error interno del servidor al enviar enlace de restablecimiento" 
+    });
   }
 };
-  
+
+// NUEVA FUNCIÓN: Restablecer contraseña
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Token y nueva contraseña son requeridos" 
+      });
+    }
+
+    // Buscar usuario con el token válido y no expirado
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Token inválido o expirado" 
+      });
+    }
+
+    // Hashear la nueva contraseña
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar contraseña y limpiar tokens
+    user.password = passwordHash;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Contraseña restablecida exitosamente"
+    });
+
+  } catch (error) {
+    console.error("Error al restablecer contraseña:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Error interno del servidor al restablecer contraseña" 
+    });
+  }
+};
