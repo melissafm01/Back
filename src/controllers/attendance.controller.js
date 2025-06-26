@@ -395,7 +395,7 @@ export const checkAttendance = async (req, res) => {
         ]
       };
     } else if (email) {
-      // Usuario no autenticado: buscar solo por email
+      // Usuario no autenticado: buscar solo por emailfir
       criteria.email = email.toLowerCase();
     } else {
       return res.status(400).json({ 
