@@ -212,32 +212,34 @@ export const confirmAttendance = async (req, res) => {
     // Guardar asistencia
     const newAttendance = await Attendance.create([attendanceData], { session });
 
-    // Crear notificación y preparar correo para autenticados
-    if (req.user) {
-      await Notification.create([{
-        user: req.user.id,
-        task: taskId,
-        daysBefore: 0,
-        type: 'confirmación',
-      }], { session });
+    // ✅ REMOVIDO: Ya NO se crea automáticamente la notificación
+    // Las notificaciones ahora solo se crean manualmente desde la configuración
 
-      if (req.user.email) {
-        emailToSend = req.user.email;
-        emailSubject = `Confirmación de asistencia a: ${task.title}`;
-        emailText = `Hola ${req.user.username || req.user.name || 'usuario'}, confirmaste tu participación en la actividad "${task.title}" el ${task.date.toLocaleDateString()}.`;
-        console.log("⚠️ Notificación creada para:", req.user.id);
-      }
+    // Preparar correo de confirmación para autenticados
+    if (req.user && req.user.email) {
+      emailToSend = req.user.email;
+      emailSubject = `Confirmación de asistencia a: ${task.title}`;
+      emailText = `Hola ${req.user.username || req.user.name || 'usuario'}, confirmaste tu participación en la actividad "${task.title}" el ${task.date.toLocaleDateString()}.`;
+      console.log("📧 Correo preparado para usuario autenticado:", req.user.id);
 
     // Preparar correo para invitados
     } else if (!req.user && email) {
       emailToSend = email.toLowerCase();
       emailSubject = `Confirmación de asistencia a: ${task.title}`;
       emailText = `Hola ${name || 'invitado'}, has confirmado tu participación en la actividad "${task.title}" el ${task.date.toLocaleDateString()}.`;
-      console.log("⚠️ Correo preparado para invitado:", emailToSend);
+      console.log("📧 Correo preparado para invitado:", emailToSend);
     }
 
     await session.commitTransaction();
-    res.status(201).json({ message: "Asistencia confirmada", attendance: newAttendance[0] });
+    res.status(201).json({ 
+      message: "Asistencia confirmada", 
+      attendance: newAttendance[0],
+      // ✅ Nuevo: Información clara para el frontend
+      notificationInfo: {
+        created: false,
+        message: "Para recibir recordatorios, configura las notificaciones manualmente"
+      }
+    });
 
     // Enviar correo fuera de la transacción
     if (emailToSend) {
@@ -261,7 +263,6 @@ export const confirmAttendance = async (req, res) => {
     session.endSession();
   }
 };
-
 
 
 // Cancelar asistencia
