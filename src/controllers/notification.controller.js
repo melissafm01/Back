@@ -52,7 +52,7 @@ export const deleteNotification = async (req, res) => {
   try {
     const notification = await Notification.findOneAndDelete({
       _id: req.params.id,
-      user: req.user.id // CORREGIDO: era req.userId, ahora es req.user.id
+      user: req.user.id 
     });
 
     if (!notification) {
