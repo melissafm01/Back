@@ -273,16 +273,36 @@ export const cancelAttendance = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(taskId))
       return res.status(400).json({ message: "ID inválido" });
 
-    const criteria = req.user?.id
+    const isAuthenticated = !!req.user;
+    const criteria = isAuthenticated
       ? { task: taskId, user: req.user.id }
       : { task: taskId, email: req.body.email?.toLowerCase() };
 
-    const deleted = await Attendance.findOneAndDelete(criteria);
-    if (!deleted) return res.status(404).json({ message: "Asistencia no encontrada" });
+    const attendance = await Attendance.findOneAndDelete(criteria);
+    if (!attendance) {
+      return res.status(404).json({ message: "Asistencia no encontrada" });
+    }
 
-    res.json({ message: "Asistencia cancelada" });
+    // 🧼 Eliminar del array task.asistentes si existe
+    const pullCondition = isAuthenticated
+      ? { $pull: { asistentes: req.user.id } }
+      : { $pull: { asistentes: { email: req.body.email?.toLowerCase() } } };
+
+    await Task.updateOne({ _id: taskId }, pullCondition);
+
+    //  Eliminamos las notificaciones asociadas si existen
+    if (isAuthenticated) {
+      await Notification.deleteOne({ task: taskId, user: req.user.id });
+    }
+
+    res.json({
+      message: "Asistencia cancelada exitosamente",
+      asistenciaCancelada: attendance,
+    });
+
   } catch (error) {
-    res.status(500).json({ message: "Error al cancelar asistencia" });
+    console.error("❌ Error al cancelar asistencia:", error);
+    res.status(500).json({ message: "Error interno al cancelar asistencia" });
   }
 };
 
@@ -329,20 +349,50 @@ export const updateAttendance = async (req, res) => {
 
 // Eliminar asistente manual
 export const deleteAttendance = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { id } = req.params;
+    const { id } = req.params; // id de la asistencia
 
-    const attendance = await Attendance.findById(id);
-    if (!attendance) return res.status(404).json({ message: "Asistente no encontrado" });
+    const attendance = await Attendance.findById(id).session(session);
+    if (!attendance) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Asistente no encontrado" });
+    }
 
-    const task = await Task.findById(attendance.task);
-    if (task.user.toString() !== req.user.id)
+    const task = await Task.findById(attendance.task).session(session);
+    if (!task) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Actividad no encontrada" });
+    }
+
+    if (task.user.toString() !== req.user.id) {
+      await session.abortTransaction();
       return res.status(403).json({ message: "No autorizado" });
+    }
 
-    await attendance.deleteOne();
-    res.json({ message: "Asistente eliminado" });
+    // Eliminar asistencia
+    await attendance.deleteOne({ session });
+
+    // Eliminamos del array 'asistentes' en Task
+    const pullCondition = attendance.user
+      ? { $pull: { asistentes: attendance.user } }
+      : { $pull: { asistentes: { email: attendance.email } } };
+
+    if (Array.isArray(task.asistentes)) {
+      await Task.updateOne({ _id: task._id }, pullCondition).session(session);
+    }
+
+    await session.commitTransaction();
+    res.json({ message: "Asistente eliminado correctamente" });
+
   } catch (error) {
+    await session.abortTransaction();
+    console.error("❌ Error al eliminar asistente:", error);
     res.status(500).json({ message: "Error al eliminar asistente" });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -350,18 +400,13 @@ export const deleteAttendance = async (req, res) => {
 export const exportAttendance = async (req, res) => {
   try {
     const { taskId } = req.params;
-
     const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ message: "Actividad no encontrada" });
-
     if (task.user.toString() !== req.user.id)
       return res.status(403).json({ message: "No autorizado" });
-
     const attendees = await Attendance.find({ task: taskId }).select("name email createdAt");
-
     const csv = attendees
-      .map(a => `${a.name},${a.email},${a.createdAt.toISOString()}`)
-      .join("\n");
+      .map(a => `${a.name},${a.email},${a.createdAt.toISOString()}`)      .join("\n");
 
     res.header("Content-Type", "text/csv");
     res.attachment(`asistentes_${taskId}.csv`);
