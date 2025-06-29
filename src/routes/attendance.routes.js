@@ -26,7 +26,7 @@ router.get("/:taskId", auth, getAttendance); // Esta debe ir después de las rut
 
 // Rutas de modificación
 router.post("/confirm", auth, confirmAttendance);
-router.delete("/cancel/:taskId", cancelAttendance);
+router.delete("/cancel/:taskId", auth, cancelAttendance);
 router.put("/:id", auth, updateAttendance);
 router.delete("/:id", auth, deleteAttendance);
 

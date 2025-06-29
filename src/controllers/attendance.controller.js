@@ -267,42 +267,59 @@ export const confirmAttendance = async (req, res) => {
 
 // Cancelar asistencia
 export const cancelAttendance = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { taskId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(taskId))
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+      await session.abortTransaction();
       return res.status(400).json({ message: "ID inválido" });
+    }
 
     const isAuthenticated = !!req.user;
+    const email = req.body?.email?.toLowerCase();
+
+    if (!isAuthenticated && !email) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Se requiere autenticación o email" });
+    }
+
     const criteria = isAuthenticated
       ? { task: taskId, user: req.user.id }
-      : { task: taskId, email: req.body.email?.toLowerCase() };
+      : { task: taskId, email };
 
-    const attendance = await Attendance.findOneAndDelete(criteria);
+    const attendance = await Attendance.findOne(criteria);
     if (!attendance) {
+      await session.abortTransaction();
       return res.status(404).json({ message: "Asistencia no encontrada" });
     }
 
-    // 🧼 Eliminar del array task.asistentes si existe
-    const pullCondition = isAuthenticated
-      ? { $pull: { asistentes: req.user.id } }
-      : { $pull: { asistentes: { email: req.body.email?.toLowerCase() } } };
+    await attendance.deleteOne({ session });
 
-    await Task.updateOne({ _id: taskId }, pullCondition);
+    await Task.updateOne(
+      { _id: taskId },
+      {
+        $pull: {
+          asistentes: attendance.user
+            ? { user: attendance.user }
+            : { email: attendance.email }
+        }
+      },
+      { session }
+    );
 
-    //  Eliminamos las notificaciones asociadas si existen
-    if (isAuthenticated) {
-      await Notification.deleteOne({ task: taskId, user: req.user.id });
-    }
+    await session.commitTransaction();
 
-    res.json({
-      message: "Asistencia cancelada exitosamente",
-      asistenciaCancelada: attendance,
-    });
+    res.json({ message: "Asistencia cancelada" });
 
   } catch (error) {
+    await session.abortTransaction();
     console.error("❌ Error al cancelar asistencia:", error);
-    res.status(500).json({ message: "Error interno al cancelar asistencia" });
+    res.status(500).json({ message: "Error al cancelar asistencia" });
+  } finally {
+    session.endSession();
   }
 };
 
