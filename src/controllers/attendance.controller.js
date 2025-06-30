@@ -419,18 +419,13 @@ export const deleteAttendance = async (req, res) => {
 
     // Eliminar asistencia
     await attendance.deleteOne({ session });
-
-    // ✅ SOLUCIÓN: Actualizar el array 'asistentes' en Task de forma más robusta
     try {
       if (Array.isArray(task.asistentes) && task.asistentes.length > 0) {
         let pullCondition;
         
         if (attendance.user) {
-          // Si el asistente tiene user ID, remover por ObjectId
           pullCondition = { $pull: { asistentes: attendance.user } };
         } else if (attendance.email) {
-          // Si no tiene user ID, intentar remover por email
-          // Nota: Esto asume que el array puede contener emails como strings
           pullCondition = { $pull: { asistentes: attendance.email } };
         }
 
@@ -441,8 +436,6 @@ export const deleteAttendance = async (req, res) => {
       }
     } catch (updateError) {
       console.warn("⚠️ Error al actualizar array asistentes:", updateError.message);
-      
-      // Si falla la actualización automática, intentar manualmente
       try {
         const updatedTask = await Task.findById(task._id).session(session);
         if (updatedTask && Array.isArray(updatedTask.asistentes)) {
@@ -465,11 +458,8 @@ export const deleteAttendance = async (req, res) => {
         }
       } catch (manualError) {
         console.warn("⚠️ No se pudo actualizar el array asistentes:", manualError.message);
-        // No fallar la transacción por esto, ya que lo importante es eliminar la asistencia
       }
-    }
-
-    await session.commitTransaction();
+    } await session.commitTransaction();
     res.json({ message: "Asistente eliminado correctamente" });
 
   } catch (error) {
