@@ -7,6 +7,7 @@ import { sendEmail } from './libs/sendEmail.js';
 import { sendPushNotification } from './libs/sendPushNotification.js';
 import Attendance from './models/attendance.model.js';
 
+
 export const runNotificationCheck = async (io) => {
   console.log("🔔 ===============================================");
   console.log("🔔 INICIANDO VERIFICACIÓN DE NOTIFICACIONES");

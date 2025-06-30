@@ -6,6 +6,7 @@ import { createAccessToken } from "../libs/jwt.js";
 import { admin } from "../config/firebase.js";
 import { sendEmail } from "../libs/sendEmail.js"
 import crypto from "crypto";
+import { getAuth } from "../config/firebase.js";
 
 export const register = async (req, res) => {
   try {
@@ -214,10 +215,24 @@ export const resendVerificationEmail = async (req, res) => {
       });
     }
 
+    const now = new Date();
+    const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutos en ms
+
+    if (user.lastVerificationEmailSent && now - user.lastVerificationEmailSent < FIVE_MINUTES) {
+      return res.status(429).json({
+        success: false,
+        message: "Espera 5 minutos antes de reenviar el email de verificación."
+      });
+    }
+
+    // Generar token si no existe
     if (!user.verificationToken) {
       user.verificationToken = crypto.randomBytes(32).toString("hex");
-      await user.save();
     }
+
+    // Actualizar la fecha de envío
+    user.lastVerificationEmailSent = new Date();
+    await user.save();
 
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${user.verificationToken}`;
 
@@ -226,14 +241,14 @@ export const resendVerificationEmail = async (req, res) => {
       subject: "Verifica tu cuenta - PanasCOOP",
       text: `Hola ${user.username},
 
-      Aquí tienes nuevamente el enlace para verificar tu cuenta en PanasCOOP 🎉
-      
-      Haz clic en el siguiente enlace para confirmar tu cuenta:
-      ${verificationLink}
+Aquí tienes nuevamente el enlace para verificar tu cuenta en PanasCOOP 🎉
 
-      Si no creaste esta cuenta, ignora este correo.
-      
-      Un abrazo solidario de parte de PanasCOOP`,
+Haz clic en el siguiente enlace para confirmar tu cuenta:
+${verificationLink}
+
+Si no creaste esta cuenta, ignora este correo.
+
+Un abrazo solidario de parte de PanasCOOP`,
     });
 
     res.json({
@@ -249,6 +264,7 @@ export const resendVerificationEmail = async (req, res) => {
     });
   }
 };
+
 
 export const createInitialSuperAdmin = async (req, res) => {
   try {

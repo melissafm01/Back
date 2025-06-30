@@ -29,6 +29,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,     
     },
+    lastVerificationEmail: {
+      type: Date,
+      
+    },
     verificationToken: {
       type: String,
     },
