@@ -1,10 +1,10 @@
 import express from 'express';
 import Comunidad from '../models/comunidad.js';
 import Mensaje from '../models/mensaje.js';
-import User from '../models/User.js';
-import auth from '../middleware/auth.js';
+import User from '../models/user.model.js';
 
 const router = express.Router();
+
 
 // Middleware para validar si el usuario es miembro de la comunidad
 async function validarMiembro(req, res, next) {
