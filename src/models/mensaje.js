@@ -1,12 +1,16 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const MensajeSchema = new mongoose.Schema({
-  comunidad: { type: mongoose.Schema.Types.ObjectId, ref: 'Comunidad' },
-  autor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  comunidad: { type: mongoose.Schema.Types.ObjectId, ref: 'Comunidad', required: true },
+  autor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   texto: String,
   audioUrl: String,
-  timestamp: { type: Date, default: Date.now },
-  tipo: { type: String, enum: ['texto', 'audio'], default: 'texto' }
+  tipo: {
+    type: String,
+    enum: ['texto', 'audio'],
+    default: 'texto'
+  },
+  timestamp: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Mensaje', MensajeSchema);
+export default mongoose.model('Mensaje', MensajeSchema);

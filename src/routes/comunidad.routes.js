@@ -3,6 +3,8 @@ import Comunidad from '../models/comunidad.js';
 import Mensaje from '../models/mensaje.js';
 import User from '../models/user.model.js';
 
+import auth from '../middlewares/auth.middleware.js';
+
 const router = express.Router();
 
 
