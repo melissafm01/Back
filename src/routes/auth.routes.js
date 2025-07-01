@@ -10,7 +10,10 @@ import {
   resendVerificationEmail,
   loginWithGoogle,
   sendPasswordResetEmail,
-  resetPassword  
+  resetPassword,
+  registroOTP,
+  reenviarOTP,  
+  verificacionOTP
 } from "../controllers/auth.controller.js";
 
 import { authorizeRoles } from "../middlewares/role.middleware.js";
@@ -53,6 +56,11 @@ router.post("/register", validateSchema(registerSchema), register);
 router.post("/login", validateSchema(loginSchema), login);
 router.get("/verify", verifyToken);
 router.post("/logout", logout);
+
+// Ruta para registrar con OTP
+router.post("/otp/register", validateSchema(registerSchema), registroOTP);
+router.post("/otp/verify", verificacionOTP);
+router.post("/otp/resend", reenviarOTP);
 
 // Rutas de verificación de email
 router.get("/verify-email", verifyEmail);

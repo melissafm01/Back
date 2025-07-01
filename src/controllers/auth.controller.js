@@ -7,6 +7,7 @@ import { admin } from "../config/firebase.js";
 import { sendEmail } from "../libs/sendEmail.js"
 import crypto from "crypto";
 import { getAuth } from "../config/firebase.js";
+import { generateOTP, otpMap } from "../otpStorage.js";
 
 export const register = async (req, res) => {
   try {
@@ -542,4 +543,80 @@ export const resetPassword = async (req, res) => {
       message: "Error interno del servidor al restablecer contraseña" 
     });
   }
+};
+
+//CODIGO OTP 
+export const registroOTP = async (req, res) => {
+  const {username, email, password} = req.body;
+  const existing = await User.findOne({ email})
+  if (existing) { return res.status(400).json({ message: "El correo electrónico ya está en uso" });}
+
+  const hashed = await bcrypt.hash(password, 10); // Hashea la contraseña
+  const code = generateOTP(email); // Genera un código OTP de 6 dígitos
+  otpMap.set(email, {username, password: hashed, code, expiresAt: Date.now() + 15 * 60 * 1000}); // Expira en 15 minutos
+  await sendEmail({
+    to: email,
+    subject: "Código de verificación - PanasCOOP",
+    text: `Hola ${username},
+
+    Tu código de verificación es: ${code}
+
+    Este código expirará en 15 minutos. Si no solicitaste este código, ignora este correo.
+
+    Un abrazo solidario de parte de PanasCOOP`,
+  });
+  return res.json({success: true, message: "Código enviado a tu correo electrónico. Verifica tu bandeja de entrada o spam."});
+}
+
+export const verificacionOTP = async (req, res) => {
+  const { email, code } = req.body;
+  const data = otpMap.get(email);
+  if (!data || Date.now() > data.expiresAt) {
+    return res.status(400).json({ message: "código inválido o expirado" });
+  }
+  // Verificar el código OTP
+  if (data.code !== code) {
+    return res.status(400).json({ message: "Código OTP incorrecto" });
+  }
+  // Crear usuario si el código es correcto
+  const newUser = new User({
+    username: data.username,
+    email,
+    password: data.password,
+    isVerified: true,
+    isActive: true,
+  });
+
+  await newUser.save();
+  otpMap.delete(email); // Elimina OTP después de verificarlo
+
+  res.json({ success: true, message: "Usuario registrado exitosamente" });
+
+}
+//// Reenviar código OTP
+export const reenviarOTP = async (req, res) => {
+  const { email } = req.body;
+  const data = otpMap.get(email);
+  if (!data)  return res.status(400).json({ message: "Código OTP no encontrado" });
+  
+
+  // Generar un nuevo código OTP
+  const newCode = generateOTP(email);
+  data.code = newCode; // Actualiza el código en los datos
+  data.expiresAt = Date.now() + 15 * 60 * 1000; // Actualiza la expiración a 15 minutos desde ahora
+  otpMap.set(email, data); // Guarda los datos actualizados});
+
+  await sendEmail({
+    to: email,
+    subject: "Nuevo código de verificación - PanasCOOP",
+    text: `Hola ${data.username},
+
+    Tu nuevo código de verificación es: ${newCode}
+
+    Este código expirará en 15 minutos. Si no solicitaste este código, ignora este correo.
+
+    Un abrazo solidario de parte de PanasCOOP`,
+  });
+
+  res.json({ success: true, message: "Nuevo código enviado a tu correo electrónico" });
 };
