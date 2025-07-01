@@ -1,8 +1,8 @@
 import express from 'express';
 import Comunidad from '../models/comunidad.js';
 import Mensaje from '../models/mensaje.js';
-import User from '../models/User.js';
-import auth from '../middleware/auth.js';
+import user from '../models/user.model.js';
+import auth from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
