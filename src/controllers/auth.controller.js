@@ -4,10 +4,16 @@ import bcrypt from "bcryptjs";
 import { TOKEN_SECRET } from "../config.js";
 import { createAccessToken } from "../libs/jwt.js";
 import { admin } from "../config/firebase.js";
-import { sendEmail } from "../libs/sendEmail.js"
 import crypto from "crypto";
 import { getAuth } from "../config/firebase.js";
-import { generateOTP, otpMap } from "../otpStorage.js";
+import { 
+  sendEmail, 
+  getVerificationEmailTemplate, 
+  getResendVerificationTemplate, 
+  getPasswordResetTemplate 
+} from "../libs/sendEmail.js";
+
+
 
 export const register = async (req, res) => {
   try {
@@ -35,16 +41,9 @@ export const register = async (req, res) => {
 
     await sendEmail({
       to: email,
-      subject: "Verifica tu cuenta",
-      text: `Hola ${username},
-
-      Gracias por unirte a PanasCOOP 🎉
-      Confirma tu cuenta haciendo clic en el siguiente enlace y ya seras parte nuestra Gran comunidad:
-      ${verificationLink}
-
-      Si no creaste esta cuenta, ignora este correo.
-      
-      Un abrazo solidario de parte de PanasCOOP`,
+      subject: "Verifica tu cuenta - PanasCOOP",
+      text: `Hola ${username}, verifica tu cuenta en: ${verificationLink}`, // Fallback texto plano
+      html: getVerificationEmailTemplate(username, verificationLink) // Template HTML
     });
 
     res.status(201).json({
@@ -55,6 +54,7 @@ export const register = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 export const login = async (req, res) => {
   try {
@@ -217,7 +217,7 @@ export const resendVerificationEmail = async (req, res) => {
     }
 
     const now = new Date();
-    const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutos en ms
+    const FIVE_MINUTES = 5 * 60 * 1000;
 
     if (user.lastVerificationEmailSent && now - user.lastVerificationEmailSent < FIVE_MINUTES) {
       return res.status(429).json({
@@ -226,30 +226,21 @@ export const resendVerificationEmail = async (req, res) => {
       });
     }
 
-    // Generar token si no existe
     if (!user.verificationToken) {
       user.verificationToken = crypto.randomBytes(32).toString("hex");
     }
 
-    // Actualizar la fecha de envío
     user.lastVerificationEmailSent = new Date();
     await user.save();
 
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${user.verificationToken}`;
 
+    // CAMBIO AQUÍ: Usar el template HTML
     await sendEmail({
       to: email,
       subject: "Verifica tu cuenta - PanasCOOP",
-      text: `Hola ${user.username},
-
-Aquí tienes nuevamente el enlace para verificar tu cuenta en PanasCOOP 🎉
-
-Haz clic en el siguiente enlace para confirmar tu cuenta:
-${verificationLink}
-
-Si no creaste esta cuenta, ignora este correo.
-
-Un abrazo solidario de parte de PanasCOOP`,
+      text: `Hola ${user.username}, verifica tu cuenta en: ${verificationLink}`, // Fallback texto plano
+      html: getResendVerificationTemplate(user.username, verificationLink) // Template HTML
     });
 
     res.json({
@@ -265,6 +256,7 @@ Un abrazo solidario de parte de PanasCOOP`,
     });
   }
 };
+
 
 
 export const createInitialSuperAdmin = async (req, res) => {
@@ -431,12 +423,10 @@ export const loginWithGoogle = async (req, res) => {
 };
 
 
-// FUNCIÓN CORREGIDA: Restablecimiento de contraseña usando tu propia lógica
 export const sendPasswordResetEmail = async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Validar que el email esté presente
     if (!email) {
       return res.status(400).json({ 
         success: false,
@@ -444,7 +434,6 @@ export const sendPasswordResetEmail = async (req, res) => {
       });
     }
 
-    // Buscar el usuario en tu base de datos
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -454,33 +443,20 @@ export const sendPasswordResetEmail = async (req, res) => {
       });
     }
 
-    // Generar token de restablecimiento
     const resetToken = crypto.randomBytes(32).toString("hex");
     
-    // Guardar el token en el usuario 
     user.passwordResetToken = resetToken;
     user.passwordResetExpires = Date.now() + 3600000; // 1 hora
     await user.save();
 
-    // Crear enlace de restablecimiento
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    // Enviar email
+    // CAMBIO AQUÍ: Usar el template HTML
     await sendEmail({
       to: email,
       subject: "Restablece tu contraseña - PanasCOOP",
-      text: `Hola ${user.username},
-
-      Recibimos una solicitud para restablecer tu contraseña en PanasCOOP.
-      
-      Haz clic en el siguiente enlace para restablecer tu contraseña:
-      ${resetLink}
-
-      Este enlace expirará en 1 hora.
-      
-      Si no solicitaste este restablecimiento, ignora este correo.
-      
-      Un abrazo solidario de parte de PanasCOOP`,
+      text: `Hola ${user.username}, restablece tu contraseña en: ${resetLink}`, // Fallback texto plano
+      html: getPasswordResetTemplate(user.username, resetLink) // Template HTML
     });
 
     res.json({ 
@@ -497,7 +473,7 @@ export const sendPasswordResetEmail = async (req, res) => {
   }
 };
 
-// NUEVA FUNCIÓN: Restablecer contraseña
+//Restablecer contraseña
 export const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;

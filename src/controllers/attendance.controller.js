@@ -268,10 +268,12 @@ export const confirmAttendance = async (req, res) => {
 // Cancelar asistencia
 export const cancelAttendance = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
-
+  
   try {
+    session.startTransaction();
+    
     const { taskId } = req.params;
+    const { email } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(taskId)) {
       await session.abortTransaction();
@@ -279,40 +281,65 @@ export const cancelAttendance = async (req, res) => {
     }
 
     const isAuthenticated = !!req.user;
-    const email = req.body?.email?.toLowerCase();
-
+    
     if (!isAuthenticated && !email) {
       await session.abortTransaction();
       return res.status(400).json({ message: "Se requiere autenticación o email" });
     }
 
-    const criteria = isAuthenticated
-      ? { task: taskId, user: req.user.id }
-      : { task: taskId, email };
+    // Construir criterios de búsqueda
+    let criteria = { task: taskId };
+    
+    if (isAuthenticated) {
+      criteria = {
+        task: taskId,
+        $or: [
+          { user: req.user.id },
+          ...(req.user.email ? [{ email: req.user.email.toLowerCase() }] : [])
+        ]
+      };
+    } else if (email) {
+      criteria.email = email.toLowerCase();
+    }
 
-    const attendance = await Attendance.findOne(criteria);
+    console.log("🔍 Buscando asistencia con criterios:", criteria);
+
+    const attendance = await Attendance.findOne(criteria).session(session);
+    
     if (!attendance) {
       await session.abortTransaction();
       return res.status(404).json({ message: "Asistencia no encontrada" });
     }
 
-    await attendance.deleteOne({ session });
+    console.log("✅ Asistencia encontrada:", attendance._id);
 
-    await Task.updateOne(
-      { _id: taskId },
-      {
-        $pull: {
-          asistentes: attendance.user
-            ? { user: attendance.user }
-            : { email: attendance.email }
-        }
-      },
-      { session }
-    );
+    // Eliminar asistencia
+    await Attendance.deleteOne({ _id: attendance._id }).session(session);
+
+    // Opcional: Actualizar el array de asistentes en Task si existe
+    try {
+      const pullCondition = attendance.user 
+        ? { $pull: { asistentes: attendance.user } }
+        : { $pull: { asistentes: { email: attendance.email } } };
+      
+      await Task.updateOne({ _id: taskId }, pullCondition).session(session);
+    } catch (updateError) {
+      console.warn("⚠️ No se pudo actualizar el array de asistentes en Task:", updateError.message);
+      // No fallar la transacción por esto
+    }
 
     await session.commitTransaction();
-
-    res.json({ message: "Asistencia cancelada" });
+    
+    console.log("🎉 Asistencia cancelada exitosamente");
+    res.json({ 
+      message: "Asistencia cancelada",
+      deletedAttendance: {
+        _id: attendance._id,
+        task: attendance.task,
+        email: attendance.email,
+        user: attendance.user
+      }
+    });
 
   } catch (error) {
     await session.abortTransaction();
@@ -365,6 +392,7 @@ export const updateAttendance = async (req, res) => {
 };
 
 // Eliminar asistente manual
+// Eliminar asistente manual
 export const deleteAttendance = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -391,17 +419,47 @@ export const deleteAttendance = async (req, res) => {
 
     // Eliminar asistencia
     await attendance.deleteOne({ session });
+    try {
+      if (Array.isArray(task.asistentes) && task.asistentes.length > 0) {
+        let pullCondition;
+        
+        if (attendance.user) {
+          pullCondition = { $pull: { asistentes: attendance.user } };
+        } else if (attendance.email) {
+          pullCondition = { $pull: { asistentes: attendance.email } };
+        }
 
-    // Eliminamos del array 'asistentes' en Task
-    const pullCondition = attendance.user
-      ? { $pull: { asistentes: attendance.user } }
-      : { $pull: { asistentes: { email: attendance.email } } };
-
-    if (Array.isArray(task.asistentes)) {
-      await Task.updateOne({ _id: task._id }, pullCondition).session(session);
-    }
-
-    await session.commitTransaction();
+        if (pullCondition) {
+          await Task.updateOne({ _id: task._id }, pullCondition).session(session);
+          console.log("✅ Array asistentes actualizado correctamente");
+        }
+      }
+    } catch (updateError) {
+      console.warn("⚠️ Error al actualizar array asistentes:", updateError.message);
+      try {
+        const updatedTask = await Task.findById(task._id).session(session);
+        if (updatedTask && Array.isArray(updatedTask.asistentes)) {
+          // Filtrar manualmente el array
+          const filteredAsistentes = updatedTask.asistentes.filter(asistente => {
+            // Si es ObjectId, comparar con user ID
+            if (attendance.user && asistente.toString() === attendance.user.toString()) {
+              return false;
+            }
+            // Si es string, comparar con email
+            if (attendance.email && asistente === attendance.email) {
+              return false;
+            }
+            return true;
+          });
+          
+          updatedTask.asistentes = filteredAsistentes;
+          await updatedTask.save({ session });
+          console.log("✅ Array asistentes actualizado manualmente");
+        }
+      } catch (manualError) {
+        console.warn("⚠️ No se pudo actualizar el array asistentes:", manualError.message);
+      }
+    } await session.commitTransaction();
     res.json({ message: "Asistente eliminado correctamente" });
 
   } catch (error) {

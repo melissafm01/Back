@@ -3,7 +3,7 @@ import Notification from './models/notification.model.js';
 import Task from './models/task.model.js';
 import User from './models/user.model.js';
 import dayjs from 'dayjs';
-import { sendEmail } from './libs/sendEmail.js';
+import { sendEmail,getReminderTemplate, getConfirmationTemplate } from './libs/sendEmail.js';
 import { sendPushNotification } from './libs/sendPushNotification.js';
 import Attendance from './models/attendance.model.js';
 
@@ -61,12 +61,6 @@ export const runNotificationCheck = async (io) => {
         continue;
       }
 
-      console.log(`👤 Usuario: ${user.username} (${user.email})`);
-      console.log(`📝 Tarea: "${task.title}"`);
-      console.log(`📅 Fecha de la tarea: ${dayjs(task.date).format('YYYY-MM-DD HH:mm')}`);
-      console.log(`⏳ Días de anticipación: ${daysBefore}`);
-      console.log(`🏷️ Tipo: ${type}`);
-
       // 4. Verificar si la tarea ya pasó
       const taskDate = dayjs(task.date);
       if (taskDate.isBefore(now)) {
@@ -112,17 +106,25 @@ export const runNotificationCheck = async (io) => {
           continue;
         }
 
-        notificationsSent++;
+         notificationsSent++;
 
-        let subject, text;
+        let subject, text, htmlTemplate;
         if (type === "confirmación") {
-          subject = `¿Confirmas tu participación en: ${task.title}?`;
-          text = `Hola ${user.username}, por favor confirma si asistirás a "${task.title}" el ${taskDate.format('DD/MM/YYYY')}.`;
-        } else {
-          subject = `Recordatorio: ${task.title}`;
-          text = `Hola ${user.username}, recuerda que tienes una actividad "${task.title}" el ${taskDate.format('DD/MM/YYYY')}.`;
-        }
-
+        subject = `¿Confirmas tu participación en: ${task.title}?`;
+         text = `Hola ${user.username}, por favor confirma si asistirás a "${task.title}" el ${taskDate.format('DD/MM/YYYY')}. Puedes responder este correo con "SÍ" o "CONFIRMO" si vas a asistir, o "NO" o "NO ASISTO" si no podrás participar.`;
+  
+         // Template limpio sin botones
+          htmlTemplate = getConfirmationTemplate(
+          user.username, 
+          task.title, 
+          taskDate.format('DD/MM/YYYY')
+        );
+  
+       } else {
+        subject = `Recordatorio: ${task.title}`;
+           text = `Hola ${user.username}, recuerda que tienes una actividad "${task.title}" el ${taskDate.format('DD/MM/YYYY')}.`;
+        htmlTemplate = getReminderTemplate(user.username, task.title, taskDate.format('DD/MM/YYYY'));
+      }
         console.log(`📧 ENVIANDO NOTIFICACIONES:`);
         console.log(`   - Asunto: ${subject}`);
         console.log(`   - Mensaje: ${text}`);
@@ -134,12 +136,13 @@ export const runNotificationCheck = async (io) => {
             $inc: { sentCount: 1 }
           });
 
-          // 9. Enviar correo electrónico
+          // 9. Enviar correo electrónico con diseño HTML
           console.log(`📬 Enviando correo electrónico...`);
           await sendEmail({
             to: user.email,
             subject,
-            text
+            text, // Fallback texto plano
+            html: htmlTemplate // Template HTML bonito
           });
           console.log(`✅ Correo enviado exitosamente a ${user.email}`);
 
