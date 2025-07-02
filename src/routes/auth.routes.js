@@ -13,13 +13,16 @@ import {
   resetPassword,
   registroOTP,
   reenviarOTP,  
-  verificacionOTP
+  verificacionOTP,
+  cambiarFotoPerfil,
+  eliminarFotoPerfil
 } from "../controllers/auth.controller.js";
 
 import { authorizeRoles } from "../middlewares/role.middleware.js";
 import { validateSchema } from "../middlewares/validator.middleware.js";
 import { loginSchema, registerSchema, superAdminSchema } from "../schemas/auth.schema.js";
 import { auth } from "../middlewares/auth.middleware.js";
+import { cambiarFoto } from "../middlewares/upload.middleware.js";
 
 const router = Router();
 
@@ -70,5 +73,8 @@ router.post("/resend-verification", resendVerificationEmail);
 router.post("/google", loginWithGoogle);
 router.post("/password-reset", sendPasswordResetEmail);
 router.post("/reset-password", resetPassword);  
+
+router.put('/profile/picture', auth, cambiarFoto,cambiarFotoPerfil)
+router.delete('/profile/picture', auth, eliminarFotoPerfil)
 
 export default router;

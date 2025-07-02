@@ -4,5 +4,7 @@ import multer from "multer";
 const storage = multer.memoryStorage();
 
 const upload = multer({ storage });
+export const cambiarFoto = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+}).single("fotoPerfil");
 
 export default upload;
