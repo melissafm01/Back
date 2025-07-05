@@ -22,6 +22,8 @@ if (!admin.apps.length) {
 
 //  Obtén el bucket de Firebase Storage
 const bucket = admin.storage().bucket();
+console.log("Bucket name:", bucket.name);
+
 
 export const getAuth = () => {
   if (!admin.apps.length) {

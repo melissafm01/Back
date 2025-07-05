@@ -31,7 +31,7 @@ export const auth = async (req, res, next) => {
       email: user.email || null,
       name: user.name || null,
       role: user.role || null,
-      ...decoded, // Añade cualquier otra propiedad del token (ej: expiración, etc.)
+     
     };
 
     req.userId = user._id;

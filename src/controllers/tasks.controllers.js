@@ -84,7 +84,8 @@ export const createTask = async (req, res) => {
         blobStream.on('error', reject);
         blobStream.on('finish', async () => {
           await blob.makePublic();
-          imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+          //imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+            imageUrl = `https://${bucket.name}/${blob.name}`;
           console.log("Imagen subida exitosamente:", imageUrl);
           resolve();
         });

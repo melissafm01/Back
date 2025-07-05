@@ -372,8 +372,7 @@ export const exportAttendance = async (req, res) => {
 // Verificar si un usuario ya está registrado para una actividad específica
 export const checkAttendance = async (req, res) => {
   try {
-    const { taskId } = req.params;
-    const { email } = req.query; // Recibir email como query parameter
+    const { taskId } = req.params;  
 
     if (!taskId) {
       return res.status(400).json({ message: "taskId es requerido" });
@@ -391,13 +390,6 @@ export const checkAttendance = async (req, res) => {
           { email: req.user.email?.toLowerCase() }
         ]
       };
-    } else if (email) {
-      // Usuario no autenticado: buscar solo por emailfir
-      criteria.email = email.toLowerCase();
-    } else {
-      return res.status(400).json({ 
-        message: "Email requerido para usuarios no autenticados" 
-      });
     }
 
     const attendance = await Attendance.findOne(criteria);
