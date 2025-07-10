@@ -671,19 +671,41 @@ export const eliminarFotoPerfil = async (req, res) => {
 
 export const cambiarInfoPerfil = async (req, res) => {
   try {
-    const { username, name } = req.body;
+    const { username, name, phone } = req.body;
     const userId = req.user.id;
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "Usuario no encontrado  " });
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
 
-    user.username = username;
-    user.name = name;
+    if (username) user.username = username;
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+
     await user.save();
 
     res.json({ message: "Información de perfil actualizada correctamente" });
   } catch (error) {
     console.error("Error al cambiar información de perfil:", error);
     res.status(500).json({ message: "Error al cambiar información de perfil" });
+  }
+};
+
+export const editarPerfil = async (req,res) => {
+  try {
+    const userId = req.user.id;
+    const { firstName, lastName, bio, phone } = req.body;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+
+   if (firstName !== undefined) user.profile.firstName = firstName;
+   if (lastName !== undefined) user.profile.lastName = lastName;
+   if (bio !== undefined) user.profile.bio = bio;
+   if (phone !== undefined) user.profile.phone = phone;
+    await user.save();
+
+    res.json({ message: "Información de perfil actualizada correctamente" });
+  } catch (error) {
+    console.error("Error al cambiar información de perfil:", error);
+    res.status(500).json({ message: "Error servidor" });
   }
 };

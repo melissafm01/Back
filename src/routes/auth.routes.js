@@ -15,7 +15,8 @@ import {
   reenviarOTP,  
   verificacionOTP,
   cambiarFotoPerfil,
-  eliminarFotoPerfil
+  eliminarFotoPerfil,
+  editarPerfil
 } from "../controllers/auth.controller.js";
 
 import { authorizeRoles } from "../middlewares/role.middleware.js";
@@ -75,6 +76,7 @@ router.post("/password-reset", sendPasswordResetEmail);
 router.post("/reset-password", resetPassword);  
 
 router.put('/profile/picture', auth, cambiarFoto,cambiarFotoPerfil)
+router.put('/perfil', auth, editarPerfil)
 router.delete('/profile/picture', auth, eliminarFotoPerfil)
 
 export default router;
