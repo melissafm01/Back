@@ -690,7 +690,7 @@ export const cambiarInfoPerfil = async (req, res) => {
   }
 };
 
-export const editarPerfil = async (req,res) => {
+/*export const editarPerfil = async (req,res) => {
   try {
     const userId = req.user.id;
     const { firstName, lastName, bio, phone } = req.body;
@@ -708,4 +708,4 @@ export const editarPerfil = async (req,res) => {
     console.error("Error al cambiar información de perfil:", error);
     res.status(500).json({ message: "Error servidor" });
   }
-};
+};*/

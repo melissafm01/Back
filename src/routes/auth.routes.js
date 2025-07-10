@@ -16,7 +16,8 @@ import {
   verificacionOTP,
   cambiarFotoPerfil,
   eliminarFotoPerfil,
-  editarPerfil
+ 
+  cambiarInfoPerfil
 } from "../controllers/auth.controller.js";
 
 import { authorizeRoles } from "../middlewares/role.middleware.js";
@@ -75,8 +76,9 @@ router.post("/google", loginWithGoogle);
 router.post("/password-reset", sendPasswordResetEmail);
 router.post("/reset-password", resetPassword);  
 
+// Editar perfil
 router.put('/profile/picture', auth, cambiarFoto,cambiarFotoPerfil)
-router.put('/perfil', auth, editarPerfil)
+router.put('/perfil', auth, cambiarInfoPerfil)
 router.delete('/profile/picture', auth, eliminarFotoPerfil)
 
 export default router;
