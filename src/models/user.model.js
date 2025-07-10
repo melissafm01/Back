@@ -52,12 +52,7 @@ const userSchema = new mongoose.Schema(
       default: Date.now
     },
     lastLogin: Date,
-    profile: {
-      firstName: String,
-      lastName: String,
-      bio: String,
-      phone: String
-    }
+
   },
   {
     timestamps: true,
