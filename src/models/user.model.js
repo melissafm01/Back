@@ -7,10 +7,17 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    email: {
+
+     email: {
       type: String,       
       unique: true,
     },
+    
+    phone: {
+     type: String,       
+      unique: true,
+    },
+    
     password: {
       type: String,
       required: true,
@@ -52,12 +59,6 @@ const userSchema = new mongoose.Schema(
       default: Date.now
     },
     lastLogin: Date,
-    profile: {
-      firstName: String,
-      lastName: String,
-      bio: String,
-      phone: String,
-    }
   },
   {
     timestamps: true,
