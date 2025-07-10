@@ -405,7 +405,6 @@ export const checkAttendance = async (req, res) => {
 };
 
 
-
 export const getUserAttendances = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
