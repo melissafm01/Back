@@ -520,3 +520,115 @@ export const resetPassword = async (req, res) => {
     });
   }
 };
+
+
+
+export const cambiarFotoPerfil = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const file = req.file;
+
+    if (!file) return res.status(400).json({ message: "No se ha proporcionado un archivo" });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    // 🔥 Eliminar imagen anterior si existe
+    if (user.profilePicture) {
+      const pathPart = user.profilePicture.split("/").pop(); // extrae nombre anterior
+      await bucket.file(`profile_pictures/${userId}/${pathPart}`).delete().catch(() => {});
+    }
+
+    // 📦 Subir nueva imagen
+    const fileName = `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`;
+    const blob = bucket.file(`profile_pictures/${userId}/${fileName}`);
+    const blobStream = blob.createWriteStream({
+      metadata: {
+        contentType: file.mimetype,
+      },
+    });
+
+    blobStream.on("error", (error) => {
+      console.error("Error al subir la imagen:", error);
+      return res.status(500).json({ message: "Error al subir la imagen" });
+    });
+
+    blobStream.on("finish", async () => {
+      const url = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+      user.profilePicture = url;
+      await user.save();
+
+      return res.json({
+        message: "Foto de perfil actualizada correctamente",
+        profilePicture: url,
+      });
+    });
+
+    blobStream.end(file.buffer);
+  } catch (error) {
+    console.error("Error al cambiar foto de perfil:", error);
+    res.status(500).json({ message: "Error al cambiar foto de perfil" });
+  }
+};
+
+
+export const eliminarFotoPerfil = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    if (user.profilePicture) {
+      const pathPart = user.profilePicture.split("/").pop();
+      await bucket.file(`profile_pictures/${userId}/${pathPart}`).delete().catch(() => {});
+      user.profilePicture = null;
+      await user.save();
+    }
+
+    res.json({ message: "Foto de perfil eliminada correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar foto de perfil:", error);
+    res.status(500).json({ message: "Error al eliminar foto de perfil" });
+  }
+};
+
+export const cambiarInfoPerfil = async (req, res) => {
+  try {
+    const { username, name, phone } = req.body;
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    if (username) user.username = username;
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+
+    await user.save();
+
+    res.json({ message: "Información de perfil actualizada correctamente" });
+  } catch (error) {
+    console.error("Error al cambiar información de perfil:", error);
+    res.status(500).json({ message: "Error al cambiar información de perfil" });
+  }
+};
+
+export const editarPerfil = async (req,res) => {
+  try {
+    const userId = req.user.id;
+    const { firstName, lastName, bio, phone } = req.body;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+
+   if (firstName !== undefined) user.profile.firstName = firstName;
+   if (lastName !== undefined) user.profile.lastName = lastName;
+   if (bio !== undefined) user.profile.bio = bio;
+   if (phone !== undefined) user.profile.phone = phone;
+    await user.save();
+
+    res.json({ message: "Información de perfil actualizada correctamente" });
+  } catch (error) {
+    console.error("Error al cambiar información de perfil:", error);
+    res.status(500).json({ message: "Error servidor" });
+  }
+};

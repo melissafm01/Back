@@ -56,6 +56,7 @@ const userSchema = new mongoose.Schema(
       firstName: String,
       lastName: String,
       bio: String,
+      phone: String
     }
   },
   {
