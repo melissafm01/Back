@@ -14,6 +14,13 @@ export const registerSchema = z.object({
       message: "Email is not valid",
     }),
 
+  phone: z.string({
+    required_error: "Teléfono es requerido",
+  })
+  .min(10, {
+    message: "El teléfono debe tener al menos 10 dígitos"
+  }),
+
   password: z.string({
       required_error: "Password is required",
     })
